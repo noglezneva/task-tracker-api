@@ -1,27 +1,164 @@
 # Task Tracker API
 
-Простой REST API для трекинга задач, созданный на **FastAPI**, **SQLAlchemy 2.0**, **Alembic** и **PostgreSQL**.  
-Аутентификация использует JWT (через `python-jose`), а хеширование паролей — через `passlib[bcrypt]`.
+REST API для управления персональными задачами с JWT-аутентификацией.
+
+Проект реализован на **FastAPI**, **SQLAlchemy 2.0 Async ORM** и **PostgreSQL**.  
+Для миграций используется **Alembic**, для локального запуска — **Docker Compose**.
 
 ## Возможности
 
-- **Аутентификация**
-  - **POST `/auth/register`** — регистрация нового пользователя, возвращает токен доступа (JWT)
-  - **POST `/auth/login`** — вход по email/паролю, возвращает токен доступа (JWT)
-- **Задачи** (нужен JWT)
-  - **POST `/tasks`** — создать задачу для текущего пользователя
-  - **GET `/tasks?status=open|done&limit=20&offset=0`** — список задач для текущего пользователя
-  - **GET `/tasks/{id}`** — получить одну задачу (только владелец)
-  - **PATCH `/tasks/{id}`** — частичное обновление
-  - **DELETE `/tasks/{id}`** — удалить задачу
+- Регистрация и авторизация пользователей
+- JWT Bearer authentication
+- CRUD для задач текущего пользователя
+- Фильтрация задач по статусу: `open` / `done`
+- Пагинация через `limit` и `offset`
+- Асинхронная работа с базой данных
 
-## Технологический стек
+## Стек
 
+- Python 3.12
 - FastAPI
-- SQLAlchemy 2.0
-- Alembic
+- SQLAlchemy 2.0 Async ORM
 - PostgreSQL
+- asyncpg
+- Alembic
 - Pydantic v2
-- python-jose (JWT)
-- passlib[bcrypt]
-- pytest + httpx
+- pytest
+- Docker / Docker Compose
+
+## API Endpoints
+
+### Auth
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/auth/register` | Регистрация пользователя |
+| `POST` | `/auth/login` | Авторизация пользователя |
+
+### Tasks
+
+Для работы с задачами требуется Bearer token.
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/tasks` | Создать задачу |
+| `GET` | `/tasks` | Получить список задач |
+| `GET` | `/tasks/{task_id}` | Получить задачу по ID |
+| `PATCH` | `/tasks/{task_id}` | Обновить задачу |
+| `DELETE` | `/tasks/{task_id}` | Удалить задачу |
+
+## Переменные окружения
+
+Создайте файл `.env` в корне проекта:
+
+```env
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres
+POSTGRES_DB=task_tracker
+
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/task_tracker
+
+JWT_SECRET_KEY=replace_with_a_long_random_secret_at_least_32_chars
+JWT_ALGORITHM=HS256
+JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
+```
+
+## Запуск через Docker
+
+```bash
+docker compose up --build
+```
+
+После запуска приложение будет доступно:
+
+```text
+http://127.0.0.1:8081
+```
+
+Swagger UI:
+
+```text
+http://127.0.0.1:8081/docs
+```
+
+ReDoc:
+
+```text
+http://127.0.0.1:8081/redoc
+```
+
+Остановить контейнеры:
+
+```bash
+docker compose down
+```
+
+Остановить контейнеры и удалить данные PostgreSQL:
+
+```bash
+docker compose down -v
+```
+
+## Пример использования
+
+### Регистрация
+
+```bash
+curl -X POST "http://127.0.0.1:8081/auth/register" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","password":"strongpassword123"}'
+```
+
+Пример ответа:
+
+```json
+{
+  "access_token": "<ACCESS_TOKEN>",
+  "token_type": "bearer"
+}
+```
+
+### Логин
+
+```bash
+curl -X POST "http://127.0.0.1:8081/auth/login" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=user@example.com&password=strongpassword123"
+```
+
+### Создание задачи
+
+```bash
+curl -X POST "http://127.0.0.1:8081/tasks" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Learn FastAPI",
+    "description": "Create task tracker API",
+    "priority": 2,
+    "due_date": "2026-05-30"
+  }'
+```
+
+### Получение задач
+
+```bash
+curl -X GET "http://127.0.0.1:8081/tasks?status=open&limit=10&offset=0" \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+
+## Тесты
+
+macOS / Linux:
+
+```bash
+DATABASE_URL="sqlite+aiosqlite:///:memory:" JWT_SECRET_KEY="abcdefghijklmnopqrstuvwxyz123456" pytest -q
+```
+
+Windows PowerShell:
+
+```powershell
+$env:DATABASE_URL="sqlite+aiosqlite:///:memory:"
+$env:JWT_SECRET_KEY="abcdefghijklmnopqrstuvwxyz123456"
+pytest -q
+```
