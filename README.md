@@ -35,6 +35,12 @@ REST API для управления персональными задачами
 | `POST` | `/auth/register` | Регистрация пользователя |
 | `POST` | `/auth/login` | Авторизация пользователя |
 
+### Service
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/health` | Проверка, что сервис запущен |
+
 ### Tasks
 
 Для работы с задачами требуется Bearer token.
