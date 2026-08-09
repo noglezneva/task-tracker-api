@@ -13,6 +13,7 @@ REST API для управления персональными задачами
 - Фильтрация задач по статусу: `open` / `done`
 - Пагинация через `limit` и `offset`
 - Асинхронная работа с базой данных
+- Автоматические проверки через GitHub Actions
 
 ## Стек
 
@@ -25,6 +26,8 @@ REST API для управления персональными задачами
 - Pydantic v2
 - pytest
 - Docker / Docker Compose
+- Ruff
+- GitHub Actions
 
 ## API Endpoints
 
@@ -168,3 +171,11 @@ $env:DATABASE_URL="sqlite+aiosqlite:///:memory:"
 $env:JWT_SECRET_KEY="abcdefghijklmnopqrstuvwxyz123456"
 pytest -q
 ```
+
+## CI
+
+При каждом Pull Request автоматически запускаются:
+
+- `ruff check`
+- `ruff format --check`
+- `pytest`
