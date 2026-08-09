@@ -14,5 +14,3 @@ class TokenResponse(BaseModel):
 class LoginRequest(BaseModel):
     username: EmailStr
     password: str
-
-

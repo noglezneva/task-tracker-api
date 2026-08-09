@@ -2,7 +2,9 @@ from fastapi.testclient import TestClient
 
 
 def _get_auth_header(client: TestClient, email: str) -> dict[str, str]:
-    resp = client.post("/auth/register", json={"email": email, "password": "strongpassword"})
+    resp = client.post(
+        "/auth/register", json={"email": email, "password": "strongpassword"}
+    )
     assert resp.status_code in (200, 201)
     token = resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
@@ -41,3 +43,13 @@ def test_cannot_access_another_users_task(client: TestClient) -> None:
     assert resp.status_code == 404
 
 
+def test_cannot_create_task_with_empty_title(client: TestClient) -> None:
+    headers = _get_auth_header(client, "validation@example.com")
+
+    resp = client.post(
+        "/tasks",
+        json={"title": ""},
+        headers=headers,
+    )
+
+    assert resp.status_code == 422
