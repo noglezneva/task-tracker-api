@@ -3,11 +3,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from app.api.deps import DBSessionDep, CurrentUserDep
+from app.api.deps import CurrentUserDep, DBSessionDep
 from app.models.task import Task, TaskStatus
-from app.schemas.task import TaskCreate, TaskRead, TaskUpdate
 from app.repositories import TaskRepository
-
+from app.schemas.task import TaskCreate, TaskRead, TaskUpdate
 
 router = APIRouter()
 
@@ -82,4 +81,3 @@ async def delete_task(
 ) -> None:
     task = await _get_task_for_user(db, task_id, current_user.id)
     await TaskRepository(db).delete(task)
-    return None
