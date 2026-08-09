@@ -1,0 +1,217 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { createTask, deleteTask, listTasks, updateTask } from "../api/tasks";
+import { useAuth } from "../auth/AuthContext";
+import { TaskCard } from "../components/TaskCard";
+import { TaskModal } from "../components/TaskModal";
+import type { Task, TaskCreate, TaskStatus } from "../types";
+
+const PAGE_SIZE = 8;
+type Filter = TaskStatus | "all";
+
+export function TasksPage() {
+  const { signOut } = useAuth();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [page, setPage] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [modalTask, setModalTask] = useState<Task | null | undefined>(undefined);
+  const [isSaving, setIsSaving] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const loadTasks = useCallback(async () => {
+    setIsLoading(true);
+    setPageError(null);
+    try {
+      const data = await listTasks({
+        status: filter,
+        limit: PAGE_SIZE,
+        offset: page * PAGE_SIZE,
+      });
+      setTasks(data);
+    } catch (err) {
+      setPageError(err instanceof Error ? err.message : "Не удалось загрузить задачи");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [filter, page]);
+
+  useEffect(() => {
+    void loadTasks();
+  }, [loadTasks]);
+
+  const openCount = useMemo(() => tasks.filter((task) => task.status === "open").length, [tasks]);
+
+  function changeFilter(nextFilter: Filter) {
+    setFilter(nextFilter);
+    setPage(0);
+  }
+
+  async function handleSave(data: TaskCreate) {
+    setIsSaving(true);
+    try {
+      if (modalTask) {
+        await updateTask(modalTask.id, data);
+      } else {
+        await createTask(data);
+      }
+      setModalTask(undefined);
+      await loadTasks();
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleToggle(task: Task) {
+    setBusyId(task.id);
+    setPageError(null);
+    try {
+      await updateTask(task.id, { status: task.status === "done" ? "open" : "done" });
+      await loadTasks();
+    } catch (err) {
+      setPageError(err instanceof Error ? err.message : "Не удалось обновить задачу");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleDelete(task: Task) {
+    const confirmed = window.confirm(`Удалить задачу «${task.title}»?`);
+    if (!confirmed) return;
+
+    setBusyId(task.id);
+    setPageError(null);
+    try {
+      await deleteTask(task.id);
+      if (tasks.length === 1 && page > 0) {
+        setPage((current) => current - 1);
+      } else {
+        await loadTasks();
+      }
+    } catch (err) {
+      setPageError(err instanceof Error ? err.message : "Не удалось удалить задачу");
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <main className="app-shell">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark">т</span>
+          трекер задач
+        </div>
+        <button className="text-button" type="button" onClick={signOut}>
+          Выйти
+        </button>
+      </header>
+
+      <section className="dashboard">
+        <div className="dashboard__heading">
+          <div>
+            <p className="eyebrow">Твои задачи</p>
+            <h1>Пусть задачи ждут тебя здесь.</h1>
+            <p className="dashboard__subtext">
+              {isLoading
+                ? "Загружаем список…"
+                : `Открытых задач на этой странице: ${openCount}.`}
+            </p>
+          </div>
+          <button className="button button--primary" type="button" onClick={() => setModalTask(null)}>
+            <span aria-hidden="true">＋</span> Новая задача
+          </button>
+        </div>
+
+        <div className="toolbar">
+          <div className="segmented" aria-label="Фильтр задач">
+            {(["all", "open", "done"] as Filter[]).map((item) => (
+              <button
+                className={filter === item ? "segmented__item segmented__item--active" : "segmented__item"}
+                type="button"
+                key={item}
+                onClick={() => changeFilter(item)}
+              >
+                {item === "all" ? "Все" : item === "open" ? "Открытые" : "Выполненные"}
+              </button>
+            ))}
+          </div>
+          <span className="page-label">Страница {page + 1}</span>
+        </div>
+
+        {pageError && (
+          <div className="notice notice--error">
+            <span>{pageError}</span>
+            <button className="text-button" type="button" onClick={() => void loadTasks()}>
+              Повторить
+            </button>
+          </div>
+        )}
+
+        {isLoading ? (
+          <div className="task-list" aria-label="Загрузка задач">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div className="task-skeleton" key={index} />
+            ))}
+          </div>
+        ) : tasks.length ? (
+          <div className="task-list">
+            {tasks.map((task) => (
+              <TaskCard
+                key={task.id}
+                task={task}
+                busy={busyId === task.id}
+                onToggle={(item) => void handleToggle(item)}
+                onEdit={(item) => setModalTask(item)}
+                onDelete={(item) => void handleDelete(item)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <span className="empty-state__mark">✓</span>
+            <h2>Здесь пока ничего нет.</h2>
+            <p>
+              {filter === "all"
+                ? "Создай первую небольшую задачу."
+                : filter === "open"
+                  ? "На этой странице нет открытых задач."
+                  : "На этой странице нет выполненных задач."}
+            </p>
+            <button className="button button--primary" type="button" onClick={() => setModalTask(null)}>
+              Создать задачу
+            </button>
+          </div>
+        )}
+
+        <div className="pagination">
+          <button
+            className="button button--ghost"
+            type="button"
+            disabled={page === 0 || isLoading}
+            onClick={() => setPage((current) => Math.max(0, current - 1))}
+          >
+            ← Назад
+          </button>
+          <button
+            className="button button--ghost"
+            type="button"
+            disabled={tasks.length < PAGE_SIZE || isLoading}
+            onClick={() => setPage((current) => current + 1)}
+          >
+            Далее →
+          </button>
+        </div>
+      </section>
+
+      {modalTask !== undefined && (
+        <TaskModal
+          task={modalTask}
+          isSaving={isSaving}
+          onClose={() => setModalTask(undefined)}
+          onSubmit={handleSave}
+        />
+      )}
+    </main>
+  );
+}

@@ -1,21 +1,25 @@
-# Task Tracker API
+# Task Tracker
 
-REST API для управления персональными задачами с JWT-аутентификацией.
+Full-stack приложение для управления персональными задачами с JWT-аутентификацией.
 
-Проект реализован на **FastAPI**, **SQLAlchemy 2.0 Async ORM** и **PostgreSQL**.  
+Backend реализован на **FastAPI**, **SQLAlchemy 2.0 Async ORM** и **PostgreSQL**, frontend — на **React + TypeScript**.
+
 Для миграций используется **Alembic**, для локального запуска — **Docker Compose**.
 
 ## Возможности
 
-- Регистрация и авторизация пользователей
-- JWT Bearer authentication
-- CRUD для задач текущего пользователя
-- Фильтрация задач по статусу: `open` / `done`
-- Пагинация через `limit` и `offset`
-- Асинхронная работа с базой данных
-- Автоматические проверки через GitHub Actions
+- регистрация и авторизация пользователей;
+- JWT Bearer authentication;
+- CRUD для задач текущего пользователя;
+- фильтрация задач по статусу: `open` / `done`;
+- пагинация через `limit` и `offset`;
+- асинхронная работа с базой данных;
+- пользовательский интерфейс на React;
+- автоматические проверки через GitHub Actions.
 
 ## Стек
+
+### Backend
 
 - Python 3.12
 - FastAPI
@@ -25,36 +29,80 @@ REST API для управления персональными задачами
 - Alembic
 - Pydantic v2
 - pytest
+
+### Frontend
+
+- React
+- TypeScript
+- Vite
+- React Router
+
+### Infrastructure
+
 - Docker / Docker Compose
 - Ruff
 - GitHub Actions
+
+## Frontend
+
+Для проекта реализован пользовательский интерфейс на **React + TypeScript**.
+
+Frontend поддерживает:
+
+- регистрацию и авторизацию;
+- просмотр и фильтрацию задач;
+- создание, редактирование и удаление задач;
+- изменение статуса задачи;
+- пагинацию.
+
+Клиентская часть находится в директории [`frontend`](./frontend).
+
+Подробности по запуску frontend — в [`frontend/README.md`](./frontend/README.md).
+
+## Интерфейс
+
+**Авторизация**
+
+<img src="./docs/screenshots/login.png" alt="Страница авторизации" width="900" />
+
+**Список задач**
+
+<img src="./docs/screenshots/tasks.png" alt="Список задач" width="900" />
+
+**Создание новой задачи**
+
+<img src="./docs/screenshots/create-task.png" alt="Создание новой задачи" width="900" />
+
+**Пустой список**
+
+<img src="./docs/screenshots/empty-tasks.png" alt="Пустой список задач" width="900" />
 
 ## API Endpoints
 
 ### Auth
 
-| Method | Endpoint | Description |
-|---|---|---|
+| Method | Endpoint         | Description              |
+| ------ | ---------------- | ------------------------ |
 | `POST` | `/auth/register` | Регистрация пользователя |
-| `POST` | `/auth/login` | Авторизация пользователя |
+| `POST` | `/auth/login`    | Авторизация пользователя |
 
 ### Service
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `GET` | `/health` | Проверка, что сервис запущен |
+| Method | Endpoint  | Description                  |
+| ------ | --------- | ---------------------------- |
+| `GET`  | `/health` | Проверка, что сервис запущен |
 
 ### Tasks
 
 Для работы с задачами требуется Bearer token.
 
-| Method | Endpoint | Description |
-|---|---|---|
-| `POST` | `/tasks` | Создать задачу |
-| `GET` | `/tasks` | Получить список задач |
-| `GET` | `/tasks/{task_id}` | Получить задачу по ID |
-| `PATCH` | `/tasks/{task_id}` | Обновить задачу |
-| `DELETE` | `/tasks/{task_id}` | Удалить задачу |
+| Method   | Endpoint           | Description           |
+| -------- | ------------------ | --------------------- |
+| `POST`   | `/tasks`           | Создать задачу        |
+| `GET`    | `/tasks`           | Получить список задач |
+| `GET`    | `/tasks/{task_id}` | Получить задачу по ID |
+| `PATCH`  | `/tasks/{task_id}` | Обновить задачу       |
+| `DELETE` | `/tasks/{task_id}` | Удалить задачу        |
 
 ## Переменные окружения
 
@@ -78,7 +126,7 @@ JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
 docker compose up --build
 ```
 
-После запуска приложение будет доступно:
+После запуска backend будет доступен по адресу:
 
 ```text
 http://127.0.0.1:8081
