@@ -19,7 +19,11 @@ class TaskCreate(TaskBase):
 
 
 class TaskUpdate(BaseModel):
-    title: Optional[str] = Field(default=None, max_length=255)
+    title: Optional[str] = Field(
+        default=None,
+        min_length=1,
+        max_length=255,
+    )
     description: Optional[str] = None
     priority: Optional[int] = Field(default=None, ge=1)
     due_date: Optional[date] = None
