@@ -15,7 +15,6 @@ from sqlalchemy.ext.asyncio import (
 from app.core.db import Base, get_db
 from app.main import create_app
 
-
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 
 

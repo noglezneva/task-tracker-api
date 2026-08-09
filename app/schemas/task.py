@@ -1,5 +1,4 @@
-from datetime import datetime, date
-from typing import Optional
+from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -9,9 +8,9 @@ from app.models.task import TaskStatus
 
 class TaskBase(BaseModel):
     title: str = Field(min_length=1, max_length=255)
-    description: Optional[str] = None
+    description: str | None = None
     priority: int = Field(default=1, ge=1)
-    due_date: Optional[date] = None
+    due_date: date | None = None
 
 
 class TaskCreate(TaskBase):
@@ -19,15 +18,15 @@ class TaskCreate(TaskBase):
 
 
 class TaskUpdate(BaseModel):
-    title: Optional[str] = Field(
+    title: str | None = Field(
         default=None,
         min_length=1,
         max_length=255,
     )
-    description: Optional[str] = None
-    priority: Optional[int] = Field(default=None, ge=1)
-    due_date: Optional[date] = None
-    status: Optional[TaskStatus] = None
+    description: str | None = None
+    priority: int | None = Field(default=None, ge=1)
+    due_date: date | None = None
+    status: TaskStatus | None = None
 
 
 class TaskRead(TaskBase):

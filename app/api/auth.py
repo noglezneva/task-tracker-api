@@ -1,11 +1,12 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.deps import DBSessionDep
-from app.core.security import get_password_hash, verify_password, create_access_token
+from app.core.security import create_access_token, get_password_hash, verify_password
 from app.repositories import UserRepository
 from app.schemas.auth import RegisterRequest, TokenResponse
-
 
 router = APIRouter()
 
@@ -31,7 +32,8 @@ async def register(data: RegisterRequest, db: DBSessionDep) -> TokenResponse:
 
 @router.post("/login", response_model=TokenResponse)
 async def login(
-    form_data: OAuth2PasswordRequestForm = Depends(), db: DBSessionDep = None
+    db: DBSessionDep,
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 ) -> TokenResponse:
     user = await UserRepository(db).get_by_email(form_data.username)
     if not user or not verify_password(form_data.password, user.hashed_password):

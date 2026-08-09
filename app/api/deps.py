@@ -9,7 +9,6 @@ from app.core.db import get_db
 from app.core.security import decode_access_token
 from app.models.user import User
 
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
@@ -20,15 +19,18 @@ TokenDep = Annotated[str, Depends(oauth2_scheme)]
 async def get_current_user(db: DBSessionDep, token: TokenDep) -> User:
     try:
         payload = decode_access_token(token)
-        user_id_str: str | None = payload.get("sub")
-        if user_id_str is None:
-            raise ValueError("Invalid token payload")
+        user_id_str = payload.get("sub")
+
+        if not isinstance(user_id_str, str):
+            raise TypeError("Invalid token payload")
+
         user_id = UUID(user_id_str)
-    except Exception:
+
+    except (ValueError, TypeError) as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
-        )
+        ) from exc
 
     user = await db.get(User, user_id)
     if not user:
