@@ -46,7 +46,9 @@ async def list_tasks(
 async def _get_task_for_user(db: DBSessionDep, task_id: UUID, user_id: UUID) -> Task:
     task = await TaskRepository(db).get_for_user(task_id=task_id, user_id=user_id)
     if not task:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Task not found"
+        )
     return task
 
 

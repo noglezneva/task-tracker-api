@@ -21,5 +21,3 @@ def test_register_and_login_returns_token(client: TestClient) -> None:
     data = resp.json()
     assert "access_token" in data
     assert data["token_type"] == "bearer"
-
-
