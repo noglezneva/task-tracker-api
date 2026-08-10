@@ -37,13 +37,20 @@ class TaskRepository:
         *,
         user_id: UUID,
         status: TaskStatus | None,
+        search: str | None,
         limit: int,
         offset: int,
     ) -> list[Task]:
         query = select(Task).where(Task.user_id == user_id)
+
         if status is not None:
             query = query.where(Task.status == status)
+
+        if search is not None:
+            query = query.where(Task.title.ilike(f"%{search}%"))
+
         query = query.order_by(Task.created_at.desc()).limit(limit).offset(offset)
+
         result = await self.db.scalars(query)
         return list(result.all())
 

@@ -74,3 +74,30 @@ def test_cannot_update_task_with_empty_title(client: TestClient) -> None:
     )
 
     assert update_resp.status_code == 422
+
+
+def test_search_tasks_by_title(client: TestClient) -> None:
+    headers = _get_auth_header(client, "search@example.com")
+
+    client.post(
+        "/tasks",
+        json={"title": "Learn FastAPI"},
+        headers=headers,
+    )
+    client.post(
+        "/tasks",
+        json={"title": "Learn Django"},
+        headers=headers,
+    )
+
+    resp = client.get(
+        "/tasks?search=fastapi",
+        headers=headers,
+    )
+
+    assert resp.status_code == 200
+
+    tasks = resp.json()
+
+    assert len(tasks) == 1
+    assert tasks[0]["title"] == "Learn FastAPI"
