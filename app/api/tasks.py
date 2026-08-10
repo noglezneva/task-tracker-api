@@ -29,6 +29,7 @@ async def create_task(
 @router.get("", response_model=list[TaskRead])
 async def list_tasks(
     status: Literal["open", "done"] | None = Query(default=None),
+    search: str | None = Query(default=None, min_length=1, max_length=255),
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: DBSessionDep = None,
@@ -37,6 +38,7 @@ async def list_tasks(
     return await TaskRepository(db).list_for_user(
         user_id=current_user.id,
         status=TaskStatus(status) if status is not None else None,
+        search=search,
         limit=limit,
         offset=offset,
     )
