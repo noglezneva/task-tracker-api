@@ -101,3 +101,45 @@ def test_search_tasks_by_title(client: TestClient) -> None:
 
     assert len(tasks) == 1
     assert tasks[0]["title"] == "Learn FastAPI"
+
+
+def test_sort_tasks_by_priority(client: TestClient) -> None:
+    headers = _get_auth_header(client, "sorting@example.com")
+
+    client.post(
+        "/tasks",
+        json={"title": "Low priority", "priority": 1},
+        headers=headers,
+    )
+    client.post(
+        "/tasks",
+        json={"title": "High priority", "priority": 3},
+        headers=headers,
+    )
+    client.post(
+        "/tasks",
+        json={"title": "Medium priority", "priority": 2},
+        headers=headers,
+    )
+
+    resp = client.get(
+        "/tasks?sort_by=priority&order=desc",
+        headers=headers,
+    )
+
+    assert resp.status_code == 200
+
+    tasks = resp.json()
+
+    assert [task["priority"] for task in tasks] == [3, 2, 1]
+
+
+def test_rejects_invalid_sort_field(client: TestClient) -> None:
+    headers = _get_auth_header(client, "invalid-sorting@example.com")
+
+    resp = client.get(
+        "/tasks?sort_by=unknown",
+        headers=headers,
+    )
+
+    assert resp.status_code == 422

@@ -38,6 +38,8 @@ class TaskRepository:
         user_id: UUID,
         status: TaskStatus | None,
         search: str | None,
+        sort_by: str,
+        order: str,
         limit: int,
         offset: int,
     ) -> list[Task]:
@@ -49,7 +51,20 @@ class TaskRepository:
         if search is not None:
             query = query.where(Task.title.ilike(f"%{search}%"))
 
-        query = query.order_by(Task.created_at.desc()).limit(limit).offset(offset)
+        sort_columns = {
+            "created_at": Task.created_at,
+            "due_date": Task.due_date,
+            "priority": Task.priority,
+        }
+
+        sort_column = sort_columns[sort_by]
+
+        if order == "asc":
+            sort_column = sort_column.asc()
+        else:
+            sort_column = sort_column.desc()
+
+        query = query.order_by(sort_column).limit(limit).offset(offset)
 
         result = await self.db.scalars(query)
         return list(result.all())
