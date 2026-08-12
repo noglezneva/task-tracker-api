@@ -3,7 +3,6 @@ from celery.schedules import crontab
 
 from app.core.config import settings
 
-
 celery_app = Celery(
     "task_tracker",
     broker=settings.REDIS_URL,

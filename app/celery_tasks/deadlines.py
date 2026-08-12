@@ -8,7 +8,6 @@ from app.core.celery_db import CelerySessionLocal
 from app.core.config import settings
 from app.models.task import Task, TaskStatus
 
-
 logger = get_task_logger(__name__)
 
 
