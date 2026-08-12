@@ -20,6 +20,13 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
+    REDIS_URL: str = Field(..., description="Redis broker URL")
+    CELERY_RESULT_BACKEND: str = Field(..., description="Celery result backend URL")
+    CELERY_TIMEZONE: str = "UTC"
+
+    DEADLINE_REMINDER_DAYS: int = Field(default=1, ge=0, le=30)
+    DEADLINE_CHECK_HOUR_UTC: int = Field(default=8, ge=0, le=23)
+
     TEST_DATABASE_URL: AnyUrl | None = None
 
 
