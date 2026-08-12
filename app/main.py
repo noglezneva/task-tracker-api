@@ -2,9 +2,12 @@ import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, status
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.api import auth, tasks
+from app.api.deps import DBSessionDep
 
 logger = logging.getLogger(__name__)
 
@@ -26,8 +29,20 @@ def create_app() -> FastAPI:
     app.include_router(tasks.router, prefix="/tasks", tags=["tasks"])
 
     @app.get("/health")
-    async def healthcheck() -> dict[str, str]:
-        return {"status": "ok"}
+    async def healthcheck(db: DBSessionDep) -> dict[str, str]:
+        try:
+            await db.execute(text("SELECT 1"))
+        except SQLAlchemyError as exc:
+            logger.exception("Database health check failed")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database unavailable",
+            ) from exc
+
+        return {
+            "status": "ok",
+            "database": "connected",
+        }
 
     return app
 
