@@ -5,12 +5,14 @@ import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.db import Base, get_db
 from app.main import create_app
@@ -72,3 +74,23 @@ def app(db_session: AsyncSession) -> FastAPI:
 def client(app: FastAPI) -> Generator[TestClient, None, None]:
     with TestClient(app) as c:
         yield c
+
+
+@pytest.fixture
+def celery_session_factory() -> Generator[sessionmaker[Session], None, None]:
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+
+    Base.metadata.create_all(engine)
+
+    testing_session_local = sessionmaker(
+        bind=engine,
+        autocommit=False,
+        autoflush=False,
+        expire_on_commit=False,
+    )
+
+    try:
+        yield testing_session_local
+    finally:
+        Base.metadata.drop_all(engine)
+        engine.dispose()
