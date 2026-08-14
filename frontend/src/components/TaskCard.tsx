@@ -17,6 +17,35 @@ function formatDate(value: string | null): string {
   }).format(new Date(`${value}T00:00:00`));
 }
 
+function getDueDateLabel(dueDate: string | null, isDone: boolean): string {
+  if (!dueDate) {
+    return "Без срока";
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const due = new Date(`${dueDate}T00:00:00`);
+  const formattedDate = formatDate(dueDate);
+
+  if (!isDone && due < today) {
+    return `Просрочено · ${formattedDate}`;
+  }
+
+  if (due.getTime() === today.getTime()) {
+    return `Сегодня · ${formattedDate}`;
+  }
+
+  if (due.getTime() === tomorrow.getTime()) {
+    return `Завтра · ${formattedDate}`;
+  }
+
+  return formattedDate;
+}
+
 function isOverdue(dueDate: string | null, isDone: boolean): boolean {
   if (!dueDate || isDone) {
     return false;
@@ -30,7 +59,13 @@ function isOverdue(dueDate: string | null, isDone: boolean): boolean {
   return due < today;
 }
 
-export function TaskCard({ task, busy, onToggle, onEdit, onDelete }: TaskCardProps) {
+export function TaskCard({
+  task,
+  busy,
+  onToggle,
+  onEdit,
+  onDelete,
+}: TaskCardProps) {
   const isDone = task.status === "done";
   const overdue = isOverdue(task.due_date, isDone);
 
@@ -39,7 +74,11 @@ export function TaskCard({ task, busy, onToggle, onEdit, onDelete }: TaskCardPro
       <button
         className={`task-check ${isDone ? "task-check--done" : ""}`}
         type="button"
-        aria-label={isDone ? "Вернуть задачу в открытые" : "Отметить задачу выполненной"}
+        aria-label={
+          isDone
+            ? "Вернуть задачу в открытые"
+            : "Отметить задачу выполненной"
+        }
         disabled={busy}
         onClick={() => onToggle(task)}
       >
@@ -54,12 +93,10 @@ export function TaskCard({ task, busy, onToggle, onEdit, onDelete }: TaskCardPro
 
         {task.description && <p>{task.description}</p>}
 
-        <div className={`task-meta ${overdue ? "task-meta--overdue" : ""}`}>
-          <span>
-            {overdue
-              ? `Просрочено · ${formatDate(task.due_date)}`
-              : formatDate(task.due_date)}
-          </span>
+        <div
+          className={`task-meta ${overdue ? "task-meta--overdue" : ""}`}
+        >
+          <span>{getDueDateLabel(task.due_date, isDone)}</span>
           <span>•</span>
           <span>{isDone ? "Выполнена" : "Открыта"}</span>
         </div>
