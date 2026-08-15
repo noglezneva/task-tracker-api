@@ -28,6 +28,9 @@ function getDueDateLabel(dueDate: string | null, isDone: boolean): string {
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
+  const dayAfterTomorrow = new Date(today);
+  dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+
   const due = new Date(`${dueDate}T00:00:00`);
   const formattedDate = formatDate(dueDate);
 
@@ -41,6 +44,10 @@ function getDueDateLabel(dueDate: string | null, isDone: boolean): string {
 
   if (due.getTime() === tomorrow.getTime()) {
     return `Завтра · ${formattedDate}`;
+  }
+
+  if (due.getTime() === dayAfterTomorrow.getTime()) {
+    return `Послезавтра · ${formattedDate}`;
   }
 
   return formattedDate;
