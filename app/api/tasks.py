@@ -29,7 +29,7 @@ async def create_task(
 @router.get("", response_model=list[TaskRead])
 async def list_tasks(
     status: Literal["open", "done"] | None = Query(default=None),
-    priority: int | None = Query(default=None, ge=1),
+    priority: int | None = Query(default=None, ge=1, le=3),
     search: str | None = Query(default=None, min_length=1, max_length=255),
     sort_by: Literal["created_at", "due_date", "priority"] = Query(
         default="created_at"

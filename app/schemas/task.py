@@ -9,7 +9,7 @@ from app.models.task import TaskStatus
 class TaskBase(BaseModel):
     title: str = Field(min_length=1, max_length=255)
     description: str | None = None
-    priority: int = Field(default=1, ge=1)
+    priority: int = Field(default=1, ge=1, le=3)
     due_date: date | None = None
 
 
@@ -24,7 +24,7 @@ class TaskUpdate(BaseModel):
         max_length=255,
     )
     description: str | None = None
-    priority: int | None = Field(default=None, ge=1)
+    priority: int | None = Field(default=None, ge=1, le=3)
     due_date: date | None = None
     status: TaskStatus | None = None
 

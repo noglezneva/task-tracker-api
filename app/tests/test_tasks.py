@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+import pytest
 
 
 def _get_auth_header(client: TestClient, email: str) -> dict[str, str]:
@@ -178,12 +179,52 @@ def test_filter_tasks_by_priority(client: TestClient) -> None:
     assert tasks[0]["priority"] == 2
 
 
-def test_rejects_invalid_priority_filter(client: TestClient) -> None:
-    headers = _get_auth_header(client, "invalid-priority@example.com")
+@pytest.mark.parametrize("priority", [0, 4])
+def test_rejects_invalid_priority_filter(
+    client: TestClient,
+    priority: int,
+) -> None:
+    headers = _get_auth_header(
+        client,
+        f"invalid-priority-{priority}@example.com",
+    )
 
     resp = client.get(
-        "/tasks?priority=0",
+        f"/tasks?priority={priority}",
         headers=headers,
     )
 
     assert resp.status_code == 422
+
+
+def test_cannot_create_task_with_invalid_priority(client: TestClient) -> None:
+    headers = _get_auth_header(client, "invalid-create-priority@example.com")
+
+    resp = client.post(
+        "/tasks",
+        json={"title": "Invalid priority", "priority": 4},
+        headers=headers,
+    )
+
+    assert resp.status_code == 422
+
+
+def test_cannot_update_task_with_invalid_priority(client: TestClient) -> None:
+    headers = _get_auth_header(client, "invalid-update-priority@example.com")
+
+    create_resp = client.post(
+        "/tasks",
+        json={"title": "Test task", "priority": 1},
+        headers=headers,
+    )
+    assert create_resp.status_code == 201
+
+    task_id = create_resp.json()["id"]
+
+    update_resp = client.patch(
+        f"/tasks/{task_id}",
+        json={"priority": 4},
+        headers=headers,
+    )
+
+    assert update_resp.status_code == 422
