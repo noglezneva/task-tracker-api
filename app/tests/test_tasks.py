@@ -143,3 +143,47 @@ def test_rejects_invalid_sort_field(client: TestClient) -> None:
     )
 
     assert resp.status_code == 422
+
+
+def test_filter_tasks_by_priority(client: TestClient) -> None:
+    headers = _get_auth_header(client, "priority-filter@example.com")
+
+    client.post(
+        "/tasks",
+        json={"title": "Low priority", "priority": 1},
+        headers=headers,
+    )
+    client.post(
+        "/tasks",
+        json={"title": "Medium priority", "priority": 2},
+        headers=headers,
+    )
+    client.post(
+        "/tasks",
+        json={"title": "High priority", "priority": 3},
+        headers=headers,
+    )
+
+    resp = client.get(
+        "/tasks?priority=2",
+        headers=headers,
+    )
+
+    assert resp.status_code == 200
+
+    tasks = resp.json()
+
+    assert len(tasks) == 1
+    assert tasks[0]["title"] == "Medium priority"
+    assert tasks[0]["priority"] == 2
+
+
+def test_rejects_invalid_priority_filter(client: TestClient) -> None:
+    headers = _get_auth_header(client, "invalid-priority@example.com")
+
+    resp = client.get(
+        "/tasks?priority=0",
+        headers=headers,
+    )
+
+    assert resp.status_code == 422

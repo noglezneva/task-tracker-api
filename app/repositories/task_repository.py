@@ -37,6 +37,7 @@ class TaskRepository:
         *,
         user_id: UUID,
         status: TaskStatus | None,
+        priority: int | None,
         search: str | None,
         sort_by: str,
         order: str,
@@ -47,6 +48,9 @@ class TaskRepository:
 
         if status is not None:
             query = query.where(Task.status == status)
+
+        if priority is not None:
+            query = query.where(Task.priority == priority)
 
         if search is not None:
             query = query.where(Task.title.ilike(f"%{search}%"))
