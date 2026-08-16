@@ -1,5 +1,5 @@
-from fastapi.testclient import TestClient
 import pytest
+from fastapi.testclient import TestClient
 
 
 def _get_auth_header(client: TestClient, email: str) -> dict[str, str]:
