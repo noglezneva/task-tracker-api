@@ -228,3 +228,53 @@ def test_cannot_update_task_with_invalid_priority(client: TestClient) -> None:
     )
 
     assert update_resp.status_code == 422
+
+
+def test_task_stats(client: TestClient) -> None:
+    headers = _get_auth_header(client, "stats@example.com")
+    other_headers = _get_auth_header(client, "stats-other@example.com")
+
+    overdue_resp = client.post(
+        "/tasks",
+        json={"title": "Overdue task", "due_date": "2020-01-01"},
+        headers=headers,
+    )
+    assert overdue_resp.status_code == 201
+
+    future_resp = client.post(
+        "/tasks",
+        json={"title": "Future task", "due_date": "2099-01-01"},
+        headers=headers,
+    )
+    assert future_resp.status_code == 201
+
+    done_resp = client.post(
+        "/tasks",
+        json={"title": "Done task", "due_date": "2020-01-01"},
+        headers=headers,
+    )
+    assert done_resp.status_code == 201
+
+    update_resp = client.patch(
+        f"/tasks/{done_resp.json()['id']}",
+        json={"status": "done"},
+        headers=headers,
+    )
+    assert update_resp.status_code == 200
+
+    other_resp = client.post(
+        "/tasks",
+        json={"title": "Another user's task", "due_date": "2020-01-01"},
+        headers=other_headers,
+    )
+    assert other_resp.status_code == 201
+
+    resp = client.get("/tasks/stats", headers=headers)
+
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "total": 3,
+        "open": 2,
+        "done": 1,
+        "overdue": 1,
+    }

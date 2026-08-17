@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from app.api.deps import CurrentUserDep, DBSessionDep
 from app.models.task import Task, TaskStatus
 from app.repositories import TaskRepository
-from app.schemas.task import TaskCreate, TaskRead, TaskUpdate
+from app.schemas.task import TaskCreate, TaskRead, TaskStats, TaskUpdate
 
 router = APIRouter()
 
@@ -50,6 +50,15 @@ async def list_tasks(
         limit=limit,
         offset=offset,
     )
+
+
+@router.get("/stats", response_model=TaskStats)
+async def get_task_stats(
+    db: DBSessionDep,
+    current_user: CurrentUserDep,
+) -> TaskStats:
+    stats = await TaskRepository(db).stats_for_user(user_id=current_user.id)
+    return TaskStats(**stats)
 
 
 async def _get_task_for_user(db: DBSessionDep, task_id: UUID, user_id: UUID) -> Task:
