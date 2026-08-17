@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -230,27 +232,45 @@ def test_cannot_update_task_with_invalid_priority(client: TestClient) -> None:
     assert update_resp.status_code == 422
 
 
+def test_task_stats_empty(client: TestClient) -> None:
+    headers = _get_auth_header(client, "empty-stats@example.com")
+
+    resp = client.get("/tasks/stats", headers=headers)
+
+    assert resp.status_code == 200
+    assert resp.json() == {
+        "total": 0,
+        "open": 0,
+        "done": 0,
+        "overdue": 0,
+    }
+
+
 def test_task_stats(client: TestClient) -> None:
     headers = _get_auth_header(client, "stats@example.com")
     other_headers = _get_auth_header(client, "stats-other@example.com")
 
+    today = datetime.now(timezone.utc).date()
+    overdue_date = (today - timedelta(days=1)).isoformat()
+    future_date = (today + timedelta(days=1)).isoformat()
+
     overdue_resp = client.post(
         "/tasks",
-        json={"title": "Overdue task", "due_date": "2020-01-01"},
+        json={"title": "Overdue task", "due_date": overdue_date},
         headers=headers,
     )
     assert overdue_resp.status_code == 201
 
     future_resp = client.post(
         "/tasks",
-        json={"title": "Future task", "due_date": "2099-01-01"},
+        json={"title": "Future task", "due_date": future_date},
         headers=headers,
     )
     assert future_resp.status_code == 201
 
     done_resp = client.post(
         "/tasks",
-        json={"title": "Done task", "due_date": "2020-01-01"},
+        json={"title": "Done task", "due_date": overdue_date},
         headers=headers,
     )
     assert done_resp.status_code == 201
@@ -264,7 +284,7 @@ def test_task_stats(client: TestClient) -> None:
 
     other_resp = client.post(
         "/tasks",
-        json={"title": "Another user's task", "due_date": "2020-01-01"},
+        json={"title": "Another user's task", "due_date": overdue_date},
         headers=other_headers,
     )
     assert other_resp.status_code == 201
