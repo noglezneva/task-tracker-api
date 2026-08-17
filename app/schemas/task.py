@@ -37,3 +37,10 @@ class TaskRead(TaskBase):
 
     class Config:
         from_attributes = True
+
+
+class TaskStats(BaseModel):
+    total: int
+    open: int
+    done: int
+    overdue: int
