@@ -189,8 +189,6 @@ export function TasksPage() {
           <div>
             <p className="eyebrow">Твои задачи</p>
 
-            <h1>Пусть задачи ждут тебя здесь.</h1>
-
             <p className="dashboard__subtext">
               {stats
                 ? `Открытых задач: ${stats.open}.`
