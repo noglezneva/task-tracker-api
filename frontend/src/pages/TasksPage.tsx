@@ -1,62 +1,113 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { createTask, deleteTask, listTasks, updateTask } from "../api/tasks";
+import { useCallback, useEffect, useState } from "react";
+import {
+  createTask,
+  deleteTask,
+  getTaskStats,
+  listTasks,
+  updateTask,
+} from "../api/tasks";
 import { useAuth } from "../auth/AuthContext";
 import { TaskCard } from "../components/TaskCard";
 import { TaskModal } from "../components/TaskModal";
-import type { Task, TaskCreate, TaskStatus } from "../types";
+import type {
+  Task,
+  TaskCreate,
+  TaskStats,
+  TaskStatus,
+} from "../types";
 
 const PAGE_SIZE = 8;
+
 type Filter = TaskStatus | "all";
 
 export function TasksPage() {
   const { signOut } = useAuth();
+
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [stats, setStats] = useState<TaskStats | null>(null);
+
   const [filter, setFilter] = useState<Filter>("all");
   const [page, setPage] = useState(0);
+
   const [isLoading, setIsLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
-  const [modalTask, setModalTask] = useState<Task | null | undefined>(undefined);
+  const [statsError, setStatsError] = useState<string | null>(null);
+
+  const [modalTask, setModalTask] = useState<
+    Task | null | undefined
+  >(undefined);
+
   const [isSaving, setIsSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const loadTasks = useCallback(async () => {
     setIsLoading(true);
     setPageError(null);
+
     try {
       const data = await listTasks({
         status: filter,
         limit: PAGE_SIZE,
         offset: page * PAGE_SIZE,
       });
+
       setTasks(data);
     } catch (err) {
-      setPageError(err instanceof Error ? err.message : "Не удалось загрузить задачи");
+      setPageError(
+        err instanceof Error
+          ? err.message
+          : "Не удалось загрузить задачи",
+      );
     } finally {
       setIsLoading(false);
     }
   }, [filter, page]);
 
+  const loadStats = useCallback(async () => {
+    setStatsError(null);
+
+    try {
+      const data = await getTaskStats();
+      setStats(data);
+    } catch (err) {
+      setStatsError(
+        err instanceof Error
+          ? err.message
+          : "Не удалось загрузить статистику",
+      );
+    }
+  }, []);
+
   useEffect(() => {
     void loadTasks();
   }, [loadTasks]);
 
-  const openCount = useMemo(() => tasks.filter((task) => task.status === "open").length, [tasks]);
+  useEffect(() => {
+    void loadStats();
+  }, [loadStats]);
 
   function changeFilter(nextFilter: Filter) {
     setFilter(nextFilter);
     setPage(0);
   }
 
+  async function refreshTasksAndStats() {
+    await Promise.all([loadTasks(), loadStats()]);
+  }
+
   async function handleSave(data: TaskCreate) {
     setIsSaving(true);
+
     try {
       if (modalTask) {
         await updateTask(modalTask.id, data);
       } else {
         await createTask(data);
       }
+
       setModalTask(undefined);
-      await loadTasks();
+
+      await refreshTasksAndStats();
     } finally {
       setIsSaving(false);
     }
@@ -65,31 +116,52 @@ export function TasksPage() {
   async function handleToggle(task: Task) {
     setBusyId(task.id);
     setPageError(null);
+
     try {
-      await updateTask(task.id, { status: task.status === "done" ? "open" : "done" });
-      await loadTasks();
+      await updateTask(task.id, {
+        status: task.status === "done" ? "open" : "done",
+      });
+
+      await refreshTasksAndStats();
     } catch (err) {
-      setPageError(err instanceof Error ? err.message : "Не удалось обновить задачу");
+      setPageError(
+        err instanceof Error
+          ? err.message
+          : "Не удалось обновить задачу",
+      );
     } finally {
       setBusyId(null);
     }
   }
 
   async function handleDelete(task: Task) {
-    const confirmed = window.confirm(`Удалить задачу «${task.title}»?`);
-    if (!confirmed) return;
+    const confirmed = window.confirm(
+      `Удалить задачу «${task.title}»?`,
+    );
+
+    if (!confirmed) {
+      return;
+    }
 
     setBusyId(task.id);
     setPageError(null);
+
     try {
       await deleteTask(task.id);
+
+      await loadStats();
+
       if (tasks.length === 1 && page > 0) {
         setPage((current) => current - 1);
       } else {
         await loadTasks();
       }
     } catch (err) {
-      setPageError(err instanceof Error ? err.message : "Не удалось удалить задачу");
+      setPageError(
+        err instanceof Error
+          ? err.message
+          : "Не удалось удалить задачу",
+      );
     } finally {
       setBusyId(null);
     }
@@ -102,7 +174,12 @@ export function TasksPage() {
           <span className="brand-mark">т</span>
           трекер задач
         </div>
-        <button className="text-button" type="button" onClick={signOut}>
+
+        <button
+          className="text-button"
+          type="button"
+          onClick={signOut}
+        >
           Выйти
         </button>
       </header>
@@ -111,47 +188,112 @@ export function TasksPage() {
         <div className="dashboard__heading">
           <div>
             <p className="eyebrow">Твои задачи</p>
+
             <h1>Пусть задачи ждут тебя здесь.</h1>
+
             <p className="dashboard__subtext">
-              {isLoading
-                ? "Загружаем список…"
-                : `Открытых задач на этой странице: ${openCount}.`}
+              {stats
+                ? `Открытых задач: ${stats.open}.`
+                : "Загружаем статистику…"}
             </p>
           </div>
-          <button className="button button--primary" type="button" onClick={() => setModalTask(null)}>
+
+          <button
+            className="button button--primary"
+            type="button"
+            onClick={() => setModalTask(null)}
+          >
             <span aria-hidden="true">＋</span> Новая задача
           </button>
         </div>
 
+        <div
+          className="task-stats"
+          aria-label="Статистика задач"
+        >
+          <article className="stat-card">
+            <span className="stat-card__label">Всего</span>
+            <strong>{stats?.total ?? "—"}</strong>
+          </article>
+
+          <article className="stat-card">
+            <span className="stat-card__label">Открыто</span>
+            <strong>{stats?.open ?? "—"}</strong>
+          </article>
+
+          <article className="stat-card">
+            <span className="stat-card__label">Выполнено</span>
+            <strong>{stats?.done ?? "—"}</strong>
+          </article>
+
+          <article className="stat-card stat-card--danger">
+            <span className="stat-card__label">
+              Просрочено
+            </span>
+            <strong>{stats?.overdue ?? "—"}</strong>
+          </article>
+        </div>
+
+        {statsError && (
+          <p className="stats-error">{statsError}</p>
+        )}
+
         <div className="toolbar">
-          <div className="segmented" aria-label="Фильтр задач">
-            {(["all", "open", "done"] as Filter[]).map((item) => (
-              <button
-                className={filter === item ? "segmented__item segmented__item--active" : "segmented__item"}
-                type="button"
-                key={item}
-                onClick={() => changeFilter(item)}
-              >
-                {item === "all" ? "Все" : item === "open" ? "Открытые" : "Выполненные"}
-              </button>
-            ))}
+          <div
+            className="segmented"
+            aria-label="Фильтр задач"
+          >
+            {(["all", "open", "done"] as Filter[]).map(
+              (item) => (
+                <button
+                  className={
+                    filter === item
+                      ? "segmented__item segmented__item--active"
+                      : "segmented__item"
+                  }
+                  type="button"
+                  key={item}
+                  onClick={() => changeFilter(item)}
+                >
+                  {item === "all"
+                    ? "Все"
+                    : item === "open"
+                      ? "Открытые"
+                      : "Выполненные"}
+                </button>
+              ),
+            )}
           </div>
-          <span className="page-label">Страница {page + 1}</span>
+
+          <span className="page-label">
+            Страница {page + 1}
+          </span>
         </div>
 
         {pageError && (
           <div className="notice notice--error">
             <span>{pageError}</span>
-            <button className="text-button" type="button" onClick={() => void loadTasks()}>
+
+            <button
+              className="text-button"
+              type="button"
+              onClick={() => void loadTasks()}
+            >
               Повторить
             </button>
           </div>
         )}
 
         {isLoading ? (
-          <div className="task-list" aria-label="Загрузка задач">
+          <div
+            className="task-list"
+            aria-label="Загрузка задач"
+          >
             {Array.from({ length: 4 }).map((_, index) => (
-              <div className="task-skeleton" key={index} />
+              <div
+                className="task-skeleton"
+                key={index}
+              />
             ))}
           </div>
         ) : tasks.length ? (
@@ -161,16 +303,22 @@ export function TasksPage() {
                 key={task.id}
                 task={task}
                 busy={busyId === task.id}
-                onToggle={(item) => void handleToggle(item)}
+                onToggle={(item) =>
+                  void handleToggle(item)
+                }
                 onEdit={(item) => setModalTask(item)}
-                onDelete={(item) => void handleDelete(item)}
+                onDelete={(item) =>
+                  void handleDelete(item)
+                }
               />
             ))}
           </div>
         ) : (
           <div className="empty-state">
             <span className="empty-state__mark">✓</span>
+
             <h2>Здесь пока ничего нет.</h2>
+
             <p>
               {filter === "all"
                 ? "Создай первую небольшую задачу."
@@ -178,7 +326,12 @@ export function TasksPage() {
                   ? "На этой странице нет открытых задач."
                   : "На этой странице нет выполненных задач."}
             </p>
-            <button className="button button--primary" type="button" onClick={() => setModalTask(null)}>
+
+            <button
+              className="button button--primary"
+              type="button"
+              onClick={() => setModalTask(null)}
+            >
               Создать задачу
             </button>
           </div>
@@ -189,15 +342,24 @@ export function TasksPage() {
             className="button button--ghost"
             type="button"
             disabled={page === 0 || isLoading}
-            onClick={() => setPage((current) => Math.max(0, current - 1))}
+            onClick={() =>
+              setPage((current) =>
+                Math.max(0, current - 1),
+              )
+            }
           >
             ← Назад
           </button>
+
           <button
             className="button button--ghost"
             type="button"
-            disabled={tasks.length < PAGE_SIZE || isLoading}
-            onClick={() => setPage((current) => current + 1)}
+            disabled={
+              tasks.length < PAGE_SIZE || isLoading
+            }
+            onClick={() =>
+              setPage((current) => current + 1)
+            }
           >
             Далее →
           </button>

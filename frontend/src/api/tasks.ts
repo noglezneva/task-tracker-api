@@ -1,4 +1,10 @@
-import type { Task, TaskCreate, TaskStatus, TaskUpdate } from "../types";
+import type {
+  Task,
+  TaskCreate,
+  TaskStats,
+  TaskStatus,
+  TaskUpdate,
+} from "../types";
 import { apiRequest } from "./client";
 
 interface ListTaskOptions {
@@ -7,7 +13,11 @@ interface ListTaskOptions {
   offset: number;
 }
 
-export function listTasks({ status, limit, offset }: ListTaskOptions): Promise<Task[]> {
+export function listTasks({
+  status,
+  limit,
+  offset,
+}: ListTaskOptions): Promise<Task[]> {
   const params = new URLSearchParams({
     limit: String(limit),
     offset: String(offset),
@@ -20,6 +30,10 @@ export function listTasks({ status, limit, offset }: ListTaskOptions): Promise<T
   return apiRequest<Task[]>(`/tasks?${params.toString()}`);
 }
 
+export function getTaskStats(): Promise<TaskStats> {
+  return apiRequest<TaskStats>("/tasks/stats");
+}
+
 export function createTask(data: TaskCreate): Promise<Task> {
   return apiRequest<Task>("/tasks", {
     method: "POST",
@@ -28,7 +42,10 @@ export function createTask(data: TaskCreate): Promise<Task> {
   });
 }
 
-export function updateTask(taskId: string, data: TaskUpdate): Promise<Task> {
+export function updateTask(
+  taskId: string,
+  data: TaskUpdate,
+): Promise<Task> {
   return apiRequest<Task>(`/tasks/${taskId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },

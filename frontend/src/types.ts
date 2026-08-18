@@ -26,6 +26,13 @@ export interface TaskUpdate {
   status?: TaskStatus;
 }
 
+export interface TaskStats {
+  total: number;
+  open: number;
+  done: number;
+  overdue: number;
+}
+
 export interface TokenResponse {
   access_token: string;
   token_type: string;
