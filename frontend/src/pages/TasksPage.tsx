@@ -9,6 +9,7 @@ import {
 import { useAuth } from "../auth/AuthContext";
 import { TaskCard } from "../components/TaskCard";
 import { TaskModal } from "../components/TaskModal";
+import { ThemeToggle } from "../components/ThemeToggle";
 import type {
   Task,
   TaskCreate,
@@ -175,13 +176,17 @@ export function TasksPage() {
           трекер задач
         </div>
 
-        <button
-          className="text-button"
-          type="button"
-          onClick={signOut}
-        >
-          Выйти
-        </button>
+        <div className="topbar__actions">
+          <ThemeToggle />
+
+          <button
+            className="text-button"
+            type="button"
+            onClick={signOut}
+          >
+            Выйти
+          </button>
+        </div>
       </header>
 
       <section className="dashboard">
