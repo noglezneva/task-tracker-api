@@ -9,12 +9,14 @@ import { apiRequest } from "./client";
 
 interface ListTaskOptions {
   status: TaskStatus | "all";
+  search?: string;
   limit: number;
   offset: number;
 }
 
 export function listTasks({
   status,
+  search,
   limit,
   offset,
 }: ListTaskOptions): Promise<Task[]> {
@@ -25,6 +27,12 @@ export function listTasks({
 
   if (status !== "all") {
     params.set("status", status);
+  }
+
+  const trimmedSearch = search?.trim();
+
+  if (trimmedSearch) {
+    params.set("search", trimmedSearch);
   }
 
   return apiRequest<Task[]>(`/tasks?${params.toString()}`);

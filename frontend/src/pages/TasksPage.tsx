@@ -28,6 +28,7 @@ export function TasksPage() {
   const [stats, setStats] = useState<TaskStats | null>(null);
 
   const [filter, setFilter] = useState<Filter>("all");
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -48,6 +49,7 @@ export function TasksPage() {
     try {
       const data = await listTasks({
         status: filter,
+        search,
         limit: PAGE_SIZE,
         offset: page * PAGE_SIZE,
       });
@@ -62,7 +64,7 @@ export function TasksPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [filter, page]);
+  }, [filter, search, page]);
 
   const loadStats = useCallback(async () => {
     setStatsError(null);
@@ -89,6 +91,16 @@ export function TasksPage() {
 
   function changeFilter(nextFilter: Filter) {
     setFilter(nextFilter);
+    setPage(0);
+  }
+
+  function changeSearch(value: string) {
+    setSearch(value);
+    setPage(0);
+  }
+
+  function clearSearch() {
+    setSearch("");
     setPage(0);
   }
 
@@ -241,6 +253,49 @@ export function TasksPage() {
           <p className="stats-error">{statsError}</p>
         )}
 
+        <div className="task-search">
+          <span
+            className="task-search__icon"
+            aria-hidden="true"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.3-4.3" />
+            </svg>
+          </span>
+
+          <input
+            className="task-search__input"
+            type="search"
+            value={search}
+            placeholder="Поиск задач..."
+            aria-label="Поиск задач"
+            onChange={(event) =>
+              changeSearch(event.target.value)
+            }
+          />
+
+          {search && (
+            <button
+              className="task-search__clear"
+              type="button"
+              aria-label="Очистить поиск"
+              onClick={clearSearch}
+            >
+              ×
+            </button>
+          )}
+        </div>
+
         <div className="toolbar">
           <div
             className="segmented"
@@ -320,23 +375,39 @@ export function TasksPage() {
           <div className="empty-state">
             <span className="empty-state__mark">✓</span>
 
-            <h2>Здесь пока ничего нет.</h2>
+            <h2>
+              {search.trim()
+                ? "Ничего не найдено."
+                : "Здесь пока ничего нет."}
+            </h2>
 
             <p>
-              {filter === "all"
-                ? "Создай первую небольшую задачу."
-                : filter === "open"
-                  ? "На этой странице нет открытых задач."
-                  : "На этой странице нет выполненных задач."}
+              {search.trim()
+                ? `По запросу «${search.trim()}» задач нет.`
+                : filter === "all"
+                  ? "Создай первую небольшую задачу."
+                  : filter === "open"
+                    ? "На этой странице нет открытых задач."
+                    : "На этой странице нет выполненных задач."}
             </p>
 
-            <button
-              className="button button--primary"
-              type="button"
-              onClick={() => setModalTask(null)}
-            >
-              Создать задачу
-            </button>
+            {search.trim() ? (
+              <button
+                className="button button--ghost"
+                type="button"
+                onClick={clearSearch}
+              >
+                Сбросить поиск
+              </button>
+            ) : (
+              <button
+                className="button button--primary"
+                type="button"
+                onClick={() => setModalTask(null)}
+              >
+                Создать задачу
+              </button>
+            )}
           </div>
         )}
 
