@@ -90,7 +90,9 @@ export function TaskCard({
         disabled={busy}
         onClick={() => onToggle(task)}
       >
-        {isDone ? "✓" : ""}
+        <span className="task-check__icon" aria-hidden="true">
+          ✓
+        </span>
       </button>
 
       <div className="task-card__body">
