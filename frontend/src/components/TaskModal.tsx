@@ -4,13 +4,20 @@ import {
   type FormEvent,
 } from "react";
 import "./TaskModal.css";
-import type { Task, TaskCreate } from "../types";
+
+import { DatePicker } from "./DatePicker";
+import type {
+  Task,
+  TaskCreate,
+} from "../types";
 
 interface TaskModalProps {
   task?: Task | null;
   isSaving: boolean;
   onClose: () => void;
-  onSubmit: (data: TaskCreate) => Promise<void>;
+  onSubmit: (
+    data: TaskCreate,
+  ) => Promise<void>;
 }
 
 type Priority = 1 | 2 | 3;
@@ -57,14 +64,22 @@ export function TaskModal({
   onClose,
   onSubmit,
 }: TaskModalProps) {
-  const [title, setTitle] = useState("");
+  const [title, setTitle] =
+    useState("");
+
   const [description, setDescription] =
     useState("");
 
   const [priority, setPriority] =
     useState<Priority>(2);
 
-  const [dueDate, setDueDate] = useState("");
+  const [dueDate, setDueDate] =
+    useState("");
+
+  const [
+    isDatePickerOpen,
+    setIsDatePickerOpen,
+  ] = useState(false);
 
   const [error, setError] = useState<
     string | null
@@ -78,10 +93,14 @@ export function TaskModal({
     );
 
     setPriority(
-      normalizePriority(task?.priority),
+      normalizePriority(
+        task?.priority,
+      ),
     );
 
-    setDueDate(task?.due_date ?? "");
+    setDueDate(
+      task?.due_date ?? "",
+    );
 
     setError(null);
   }, [task]);
@@ -90,7 +109,16 @@ export function TaskModal({
     function handleKeyDown(
       event: KeyboardEvent,
     ) {
-      if (event.key === "Escape") {
+      /*
+       * Если открыт календарь —
+       * первый Escape закрывает календарь.
+       *
+       * Второй Escape уже закроет модалку.
+       */
+      if (
+        event.key === "Escape" &&
+        !isDatePickerOpen
+      ) {
         onClose();
       }
     }
@@ -106,7 +134,10 @@ export function TaskModal({
         handleKeyDown,
       );
     };
-  }, [onClose]);
+  }, [
+    onClose,
+    isDatePickerOpen,
+  ]);
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>,
@@ -115,7 +146,8 @@ export function TaskModal({
 
     setError(null);
 
-    const cleanTitle = title.trim();
+    const cleanTitle =
+      title.trim();
 
     if (!cleanTitle) {
       setError(
@@ -128,10 +160,14 @@ export function TaskModal({
     try {
       await onSubmit({
         title: cleanTitle,
+
         description:
           description.trim() || null,
+
         priority,
-        due_date: dueDate || null,
+
+        due_date:
+          dueDate || null,
       });
     } catch (err) {
       setError(
@@ -219,7 +255,9 @@ export function TaskModal({
 
           <div className="form-grid">
             <fieldset className="priority-field">
-              <legend>Приоритет</legend>
+              <legend>
+                Приоритет
+              </legend>
 
               <div className="priority-picker">
                 {PRIORITIES.map(
@@ -238,11 +276,16 @@ export function TaskModal({
                         name="priority"
                         value={value}
                         checked={
-                          priority === value
+                          priority ===
+                          value
                         }
-                        disabled={isSaving}
+                        disabled={
+                          isSaving
+                        }
                         onChange={() =>
-                          setPriority(value)
+                          setPriority(
+                            value,
+                          )
                         }
                       />
 
@@ -260,19 +303,24 @@ export function TaskModal({
               </div>
             </fieldset>
 
-            <label>
-              <span>Срок</span>
+            <div className="date-field">
+              <span className="date-field__label">
+                Срок
+              </span>
 
-              <input
-                type="date"
+              <DatePicker
                 value={dueDate}
-                onChange={(event) =>
-                  setDueDate(
-                    event.target.value,
-                  )
+                onChange={
+                  setDueDate
+                }
+                disabled={
+                  isSaving
+                }
+                onOpenChange={
+                  setIsDatePickerOpen
                 }
               />
-            </label>
+            </div>
           </div>
 
           {error && (
