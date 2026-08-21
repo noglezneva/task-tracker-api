@@ -29,6 +29,7 @@ export function TasksPage() {
 
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [page, setPage] = useState(0);
 
   const [isLoading, setIsLoading] = useState(true);
@@ -49,7 +50,7 @@ export function TasksPage() {
     try {
       const data = await listTasks({
         status: filter,
-        search,
+        search: debouncedSearch,
         limit: PAGE_SIZE,
         offset: page * PAGE_SIZE,
       });
@@ -64,7 +65,7 @@ export function TasksPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [filter, search, page]);
+  }, [filter, debouncedSearch, page]);
 
   const loadStats = useCallback(async () => {
     setStatsError(null);
@@ -89,6 +90,17 @@ export function TasksPage() {
     void loadStats();
   }, [loadStats]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(0);
+    }, 400);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [search]);
+
   function changeFilter(nextFilter: Filter) {
     setFilter(nextFilter);
     setPage(0);
@@ -96,11 +108,11 @@ export function TasksPage() {
 
   function changeSearch(value: string) {
     setSearch(value);
-    setPage(0);
   }
 
   function clearSearch() {
     setSearch("");
+    setDebouncedSearch("");
     setPage(0);
   }
 
