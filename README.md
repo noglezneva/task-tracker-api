@@ -6,16 +6,49 @@ Backend реализован на **FastAPI**, **SQLAlchemy 2.0 Async ORM** и *
 
 Для миграций используется **Alembic**, для локального запуска — **Docker Compose**.
 
+## Demo
+
+<p align="center">
+  <img
+    src="./docs/task-tracker-demo.gif"
+    alt="Task Tracker demo"
+    width="900"
+  />
+</p>
+
 ## Возможности
 
-- регистрация и авторизация пользователей;
+### Задачи
+
+- создание, редактирование и удаление задач;
+- изменение статуса задачи;
+- фильтрация по статусу: все / открытые / выполненные;
+- поиск задач;
+- пагинация;
+- сроки выполнения;
+- приоритеты: высокий / средний / низкий;
+- статистика по задачам;
+- отображение просроченных задач.
+
+### Интерфейс
+
+- адаптивный интерфейс на React;
+- светлая и тёмная темы;
+- плавное переключение фильтров;
+- анимация выполнения задач;
+- optimistic UI при изменении статуса;
+- отмена удаления задачи через Undo;
+- кастомный календарь для выбора срока;
+- цветовая индикация приоритетов;
+- skeleton-состояние во время загрузки.
+
+### Авторизация
+
+- регистрация пользователей;
+- авторизация;
 - JWT Bearer authentication;
-- CRUD для задач текущего пользователя;
-- фильтрация задач по статусу: `open` / `done`;
-- пагинация через `limit` и `offset`;
-- асинхронная работа с базой данных;
-- пользовательский интерфейс на React;
-- автоматические проверки через GitHub Actions.
+- защищённые маршруты frontend;
+- задачи доступны только авторизованному пользователю.
 
 ## Стек
 
@@ -36,46 +69,45 @@ Backend реализован на **FastAPI**, **SQLAlchemy 2.0 Async ORM** и *
 - TypeScript
 - Vite
 - React Router
+- ESLint
 
 ### Infrastructure
 
-- Docker / Docker Compose
-- Ruff
+- Docker
+- Docker Compose
 - GitHub Actions
+- Ruff
 
 ## Frontend
 
-Для проекта реализован пользовательский интерфейс на **React + TypeScript**.
+Клиентская часть приложения реализована на **React + TypeScript** и находится в директории [`frontend`](./frontend).
 
-Frontend поддерживает:
+Frontend отвечает за:
 
 - регистрацию и авторизацию;
-- просмотр и фильтрацию задач;
-- создание, редактирование и удаление задач;
-- изменение статуса задачи;
-- пагинацию.
-
-Клиентская часть находится в директории [`frontend`](./frontend).
+- отображение задач;
+- создание и редактирование задач;
+- поиск и фильтрацию;
+- изменение статуса;
+- удаление с возможностью отмены;
+- выбор приоритета;
+- выбор срока выполнения;
+- статистику;
+- переключение темы.
 
 Подробности по запуску frontend — в [`frontend/README.md`](./frontend/README.md).
 
-## Интерфейс
+## Приоритеты
 
-**Авторизация**
+На фронте приоритеты отображаются в виде:
 
-<img src="./docs/screenshots/login.png" alt="Страница авторизации" width="900" />
+| Значение API | Интерфейс |
+| ------------ | --------- |
+| `1`          | Высокий   |
+| `2`          | Средний   |
+| `3`          | Низкий    |
 
-**Список задач**
-
-<img src="./docs/screenshots/tasks.png" alt="Список задач" width="900" />
-
-**Создание новой задачи**
-
-<img src="./docs/screenshots/create-task.png" alt="Создание новой задачи" width="900" />
-
-**Пустой список**
-
-<img src="./docs/screenshots/empty-tasks.png" alt="Пустой список задач" width="900" />
+В API приоритет по-прежнему хранится как число.
 
 ## API Endpoints
 
@@ -156,7 +188,39 @@ docker compose down
 docker compose down -v
 ```
 
-## Пример использования
+## Запуск frontend
+
+Перейдите в директорию frontend:
+
+```bash
+cd frontend
+```
+
+Установите зависимости:
+
+```bash
+npm install
+```
+
+Запустите dev-сервер:
+
+```bash
+npm run dev
+```
+
+Production-сборка:
+
+```bash
+npm run build
+```
+
+Проверка ESLint:
+
+```bash
+npm run lint
+```
+
+## Пример использования API
 
 ### Регистрация
 
@@ -190,10 +254,10 @@ curl -X POST "http://127.0.0.1:8081/tasks" \
   -H "Authorization: Bearer <ACCESS_TOKEN>" \
   -H "Content-Type: application/json" \
   -d '{
-    "title": "Learn FastAPI",
-    "description": "Create task tracker API",
+    "title": "Купить продукты",
+    "description": "Молоко, яйца, овощи и кофе",
     "priority": 2,
-    "due_date": "2026-05-30"
+    "due_date": "2026-08-23"
   }'
 ```
 
@@ -209,7 +273,9 @@ curl -X GET "http://127.0.0.1:8081/tasks?status=open&limit=10&offset=0" \
 macOS / Linux:
 
 ```bash
-DATABASE_URL="sqlite+aiosqlite:///:memory:" JWT_SECRET_KEY="abcdefghijklmnopqrstuvwxyz123456" pytest -q
+DATABASE_URL="sqlite+aiosqlite:///:memory:" \
+JWT_SECRET_KEY="abcdefghijklmnopqrstuvwxyz123456" \
+pytest -q
 ```
 
 Windows PowerShell:
@@ -222,8 +288,18 @@ pytest -q
 
 ## CI
 
-При каждом Pull Request автоматически запускаются:
+GitHub Actions автоматически запускается при Pull Request и push в `main`.
+
+### Backend
 
 - `ruff check`
 - `ruff format --check`
 - `pytest`
+
+### Frontend
+
+- `npm ci`
+- `npm run lint`
+- `npm run build`
+
+Это позволяет автоматически проверять backend и frontend перед слиянием изменений.
