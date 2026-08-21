@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import "./TasksPage.css";
+
 import {
   createTask,
   deleteTask,

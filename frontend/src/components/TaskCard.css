@@ -1,0 +1,164 @@
+.task-card {
+  display: grid;
+
+  grid-template-columns:
+    auto
+    minmax(0, 1fr)
+    auto;
+
+  align-items: start;
+
+  gap: 1rem;
+
+  padding: 1.15rem 1.2rem;
+
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+
+  background: var(--card);
+
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 180ms ease;
+}
+
+.task-card:hover {
+  transform: translateY(-1px);
+
+  border-color: var(--muted);
+
+  box-shadow: var(--task-shadow);
+}
+
+.task-card--done {
+  opacity: 0.64;
+}
+
+.task-card--done h3 {
+  text-decoration: line-through;
+}
+
+
+/* Checkbox */
+
+.task-check {
+  display: grid;
+  place-items: center;
+
+  width: 1.55rem;
+  height: 1.55rem;
+
+  margin-top: 0.1rem;
+
+  border: 1.5px solid var(--task-check-border);
+  border-radius: 50%;
+
+  background: transparent;
+  color: var(--task-check-text);
+
+  font-size: 0.9rem;
+  font-weight: 800;
+
+  cursor: pointer;
+
+  transition:
+    background 150ms ease,
+    border-color 150ms ease;
+}
+
+.task-check--done {
+  border-color: #9fcf64;
+
+  background: var(--accent);
+}
+
+
+/* Content */
+
+.task-card__topline {
+  display: flex;
+  align-items: center;
+
+  gap: 0.65rem;
+}
+
+.task-card h3 {
+  margin: 0;
+
+  font-size: 1rem;
+
+  letter-spacing: -0.02em;
+}
+
+.task-card__body > p {
+  max-width: 48rem;
+
+  margin: 0.5rem 0 0;
+
+  color: var(--muted);
+
+  line-height: 1.55;
+  font-size: 0.92rem;
+}
+
+
+/* Priority */
+
+.priority-pill {
+  padding: 0.18rem 0.46rem;
+
+  border-radius: 999px;
+
+  background: var(--priority-background);
+  color: var(--priority-text);
+
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+
+/* Meta */
+
+.task-meta {
+  display: flex;
+
+  gap: 0.45rem;
+
+  margin-top: 0.75rem;
+
+  color: var(--meta);
+
+  font-size: 0.78rem;
+}
+
+.task-meta--overdue {
+  color: var(--danger);
+
+  font-weight: 600;
+}
+
+
+/* Actions */
+
+.task-actions {
+  display: flex;
+
+  gap: 0.85rem;
+}
+
+
+/* Responsive */
+
+@media (max-width: 620px) {
+  .task-card {
+    grid-template-columns:
+      auto
+      minmax(0, 1fr);
+  }
+
+  .task-actions {
+    grid-column: 2;
+  }
+}

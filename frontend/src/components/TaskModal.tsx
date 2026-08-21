@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import "./TaskModal.css";
 import type { Task, TaskCreate } from "../types";
 
 interface TaskModalProps {

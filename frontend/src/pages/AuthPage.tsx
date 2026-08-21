@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
+import "./AuthPage.css";
+
 import { login, register } from "../api/auth";
 import { useAuth } from "../auth/AuthContext";
 
