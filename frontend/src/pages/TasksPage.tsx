@@ -27,6 +27,7 @@ import type {
 
 const PAGE_SIZE = 8;
 const DELETE_UNDO_MS = 5000;
+const FILTER_FADE_MS = 180;
 
 type Filter = TaskStatus | "all";
 
@@ -48,15 +49,32 @@ export function TasksPage() {
   );
 
   const [filter, setFilter] = useState<Filter>("all");
+
+  /*
+   * selectedFilter отвечает только за визуально
+   * выбранную кнопку.
+   *
+   * filter — реальный фильтр, который отправляется API.
+   */
+  const [selectedFilter, setSelectedFilter] =
+    useState<Filter>("all");
+
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] =
     useState("");
   const [page, setPage] = useState(0);
 
   const [isLoading, setIsLoading] = useState(true);
+
+  const [
+    isFilterTransitioning,
+    setIsFilterTransitioning,
+  ] = useState(false);
+
   const [pageError, setPageError] = useState<
     string | null
   >(null);
+
   const [statsError, setStatsError] = useState<
     string | null
   >(null);
@@ -66,14 +84,25 @@ export function TasksPage() {
   >(undefined);
 
   const [isSaving, setIsSaving] = useState(false);
-  const [busyId, setBusyId] = useState<string | null>(
-    null,
-  );
+
+  const [busyId, setBusyId] = useState<
+    string | null
+  >(null);
 
   const [pendingDelete, setPendingDelete] =
     useState<PendingDelete | null>(null);
 
   const deleteTimerRef = useRef<number | null>(null);
+
+  const filterTransitionTimerRef = useRef<
+    number | null
+  >(null);
+
+  /*
+   * Следующую загрузку задач можно выполнить
+   * без skeleton.
+   */
+  const skipNextLoadingRef = useRef(false);
 
   const pendingDeleteRef =
     useRef<PendingDelete | null>(null);
@@ -166,8 +195,25 @@ export function TasksPage() {
     }
   }, []);
 
+  /*
+   * При обычной загрузке показываем skeleton.
+   *
+   * При переключении фильтра загружаем новые
+   * данные незаметно, пока старый список скрыт.
+   */
   useEffect(() => {
-    void loadTasks();
+    const showLoading =
+      !skipNextLoadingRef.current;
+
+    skipNextLoadingRef.current = false;
+
+    void loadTasks(showLoading).finally(() => {
+      if (!showLoading) {
+        window.requestAnimationFrame(() => {
+          setIsFilterTransitioning(false);
+        });
+      }
+    });
   }, [loadTasks]);
 
   useEffect(() => {
@@ -188,11 +234,23 @@ export function TasksPage() {
   /*
    * Если пользователь покинул страницу,
    * уже выбранное удаление всё равно сохраняем.
+   *
+   * Также очищаем таймер анимации фильтра.
    */
   useEffect(() => {
     return () => {
       if (deleteTimerRef.current !== null) {
-        window.clearTimeout(deleteTimerRef.current);
+        window.clearTimeout(
+          deleteTimerRef.current,
+        );
+      }
+
+      if (
+        filterTransitionTimerRef.current !== null
+      ) {
+        window.clearTimeout(
+          filterTransitionTimerRef.current,
+        );
       }
 
       const pending = pendingDeleteRef.current;
@@ -204,8 +262,64 @@ export function TasksPage() {
   }, []);
 
   function changeFilter(nextFilter: Filter) {
-    setFilter(nextFilter);
-    setPage(0);
+    /*
+     * Кликнули по уже визуально выбранной кнопке.
+     */
+    if (nextFilter === selectedFilter) {
+      return;
+    }
+
+    /*
+     * Если пользователь очень быстро переключает
+     * вкладки — отменяем старый таймер.
+     */
+    if (
+      filterTransitionTimerRef.current !== null
+    ) {
+      window.clearTimeout(
+        filterTransitionTimerRef.current,
+      );
+
+      filterTransitionTimerRef.current = null;
+    }
+
+    /*
+     * Активная кнопка меняется сразу.
+     */
+    setSelectedFilter(nextFilter);
+
+    /*
+     * Например:
+     *
+     * all → open → сразу снова all
+     *
+     * Реальный filter ещё не успел измениться,
+     * поэтому просто отменяем переход.
+     */
+    if (nextFilter === filter) {
+      setIsFilterTransitioning(false);
+
+      return;
+    }
+
+    /*
+     * Начинаем скрывать текущий список.
+     */
+    setIsFilterTransitioning(true);
+
+    filterTransitionTimerRef.current =
+      window.setTimeout(() => {
+        /*
+         * Следующий запрос выполняется
+         * без skeleton.
+         */
+        skipNextLoadingRef.current = true;
+
+        setFilter(nextFilter);
+        setPage(0);
+
+        filterTransitionTimerRef.current = null;
+      }, FILTER_FADE_MS);
   }
 
   function changeSearch(value: string) {
@@ -266,7 +380,10 @@ export function TasksPage() {
   }
 
   async function refreshTasksAndStats() {
-    await Promise.all([loadTasks(), loadStats()]);
+    await Promise.all([
+      loadTasks(),
+      loadStats(),
+    ]);
   }
 
   async function handleSave(data: TaskCreate) {
@@ -438,7 +555,9 @@ export function TasksPage() {
     const pending: PendingDelete = {
       task,
       index:
-        taskIndex >= 0 ? taskIndex : tasks.length,
+        taskIndex >= 0
+          ? taskIndex
+          : tasks.length,
       filter,
       search: debouncedSearch,
       page,
@@ -528,7 +647,9 @@ export function TasksPage() {
     <main className="app-shell">
       <header className="topbar">
         <div className="brand">
-          <span className="brand-mark">т</span>
+          <span className="brand-mark">
+            т
+          </span>
           трекер задач
         </div>
 
@@ -562,9 +683,13 @@ export function TasksPage() {
           <button
             className="button button--primary"
             type="button"
-            onClick={() => setModalTask(null)}
+            onClick={() =>
+              setModalTask(null)
+            }
           >
-            <span aria-hidden="true">＋</span>{" "}
+            <span aria-hidden="true">
+              ＋
+            </span>{" "}
             Новая задача
           </button>
         </div>
@@ -684,7 +809,7 @@ export function TasksPage() {
             ).map((item) => (
               <button
                 className={
-                  filter === item
+                  selectedFilter === item
                     ? "segmented__item segmented__item--active"
                     : "segmented__item"
                 }
@@ -724,89 +849,99 @@ export function TasksPage() {
           </div>
         )}
 
-        {isLoading ? (
-          <div
-            className="task-list"
-            aria-label="Загрузка задач"
-          >
-            {Array.from({
-              length: 4,
-            }).map((_, index) => (
-              <div
-                className="task-skeleton"
-                key={index}
-              />
-            ))}
-          </div>
-        ) : tasks.length ? (
-          <div className="task-list">
-            {tasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                task={task}
-                busy={
-                  busyId === task.id
-                }
-                onToggle={(item) =>
-                  void handleToggle(item)
-                }
-                onEdit={(item) =>
-                  setModalTask(item)
-                }
-                onDelete={handleDelete}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state">
-            <span className="empty-state__mark">
-              ✓
-            </span>
+        <div
+          className={`task-results ${
+            isFilterTransitioning
+              ? "task-results--changing"
+              : ""
+          }`}
+        >
+          {isLoading ? (
+            <div
+              className="task-list"
+              aria-label="Загрузка задач"
+            >
+              {Array.from({
+                length: 4,
+              }).map((_, index) => (
+                <div
+                  className="task-skeleton"
+                  key={index}
+                />
+              ))}
+            </div>
+          ) : tasks.length ? (
+            <div className="task-list">
+              {tasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  busy={
+                    busyId === task.id
+                  }
+                  onToggle={(item) =>
+                    void handleToggle(item)
+                  }
+                  onEdit={(item) =>
+                    setModalTask(item)
+                  }
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">
+              <span className="empty-state__mark">
+                ✓
+              </span>
 
-            <h2>
-              {search.trim()
-                ? "Ничего не найдено."
-                : "Здесь пока ничего нет."}
-            </h2>
+              <h2>
+                {search.trim()
+                  ? "Ничего не найдено."
+                  : "Здесь пока ничего нет."}
+              </h2>
 
-            <p>
-              {search.trim()
-                ? `По запросу «${search.trim()}» задач нет.`
-                : filter === "all"
-                  ? "Создай первую небольшую задачу."
-                  : filter === "open"
-                    ? "На этой странице нет открытых задач."
-                    : "На этой странице нет выполненных задач."}
-            </p>
+              <p>
+                {search.trim()
+                  ? `По запросу «${search.trim()}» задач нет.`
+                  : filter === "all"
+                    ? "Создай первую небольшую задачу."
+                    : filter === "open"
+                      ? "На этой странице нет открытых задач."
+                      : "На этой странице нет выполненных задач."}
+              </p>
 
-            {search.trim() ? (
-              <button
-                className="button button--ghost"
-                type="button"
-                onClick={clearSearch}
-              >
-                Сбросить поиск
-              </button>
-            ) : (
-              <button
-                className="button button--primary"
-                type="button"
-                onClick={() =>
-                  setModalTask(null)
-                }
-              >
-                Создать задачу
-              </button>
-            )}
-          </div>
-        )}
+              {search.trim() ? (
+                <button
+                  className="button button--ghost"
+                  type="button"
+                  onClick={clearSearch}
+                >
+                  Сбросить поиск
+                </button>
+              ) : (
+                <button
+                  className="button button--primary"
+                  type="button"
+                  onClick={() =>
+                    setModalTask(null)
+                  }
+                >
+                  Создать задачу
+                </button>
+              )}
+            </div>
+          )}
+        </div>
 
         <div className="pagination">
           <button
             className="button button--ghost"
             type="button"
             disabled={
-              page === 0 || isLoading
+              page === 0 ||
+              isLoading ||
+              isFilterTransitioning
             }
             onClick={() =>
               setPage((current) =>
@@ -825,7 +960,8 @@ export function TasksPage() {
             type="button"
             disabled={
               tasks.length < PAGE_SIZE ||
-              isLoading
+              isLoading ||
+              isFilterTransitioning
             }
             onClick={() =>
               setPage(
