@@ -1,4 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import "./TasksPage.css";
 
 import {
@@ -12,6 +17,7 @@ import { useAuth } from "../auth/AuthContext";
 import { TaskCard } from "../components/TaskCard";
 import { TaskModal } from "../components/TaskModal";
 import { ThemeToggle } from "../components/ThemeToggle";
+import { UndoToast } from "../components/UndoToast";
 import type {
   Task,
   TaskCreate,
@@ -20,60 +26,136 @@ import type {
 } from "../types";
 
 const PAGE_SIZE = 8;
+const DELETE_UNDO_MS = 5000;
 
 type Filter = TaskStatus | "all";
+
+interface PendingDelete {
+  task: Task;
+  index: number;
+  filter: Filter;
+  search: string;
+  page: number;
+  wasOnlyTaskOnPage: boolean;
+}
 
 export function TasksPage() {
   const { signOut } = useAuth();
 
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [stats, setStats] = useState<TaskStats | null>(null);
+  const [stats, setStats] = useState<TaskStats | null>(
+    null,
+  );
 
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] =
+    useState("");
   const [page, setPage] = useState(0);
 
   const [isLoading, setIsLoading] = useState(true);
-  const [pageError, setPageError] = useState<string | null>(null);
-  const [statsError, setStatsError] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<
+    string | null
+  >(null);
+  const [statsError, setStatsError] = useState<
+    string | null
+  >(null);
 
   const [modalTask, setModalTask] = useState<
     Task | null | undefined
   >(undefined);
 
   const [isSaving, setIsSaving] = useState(false);
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(
+    null,
+  );
 
-  const loadTasks = useCallback(async () => {
-    setIsLoading(true);
-    setPageError(null);
+  const [pendingDelete, setPendingDelete] =
+    useState<PendingDelete | null>(null);
 
-    try {
-      const data = await listTasks({
-        status: filter,
-        search: debouncedSearch,
-        limit: PAGE_SIZE,
-        offset: page * PAGE_SIZE,
-      });
+  const deleteTimerRef = useRef<number | null>(null);
 
-      setTasks(data);
-    } catch (err) {
-      setPageError(
-        err instanceof Error
-          ? err.message
-          : "Не удалось загрузить задачи",
-      );
-    } finally {
-      setIsLoading(false);
-    }
+  const pendingDeleteRef =
+    useRef<PendingDelete | null>(null);
+
+  /*
+   * Задачи, которые уже скрыты на фронте,
+   * но DELETE для которых ещё может выполняться.
+   */
+  const hiddenTaskIdsRef = useRef<Set<string>>(
+    new Set(),
+  );
+
+  const currentViewRef = useRef({
+    filter,
+    search: debouncedSearch,
+    page,
+  });
+
+  const loadTasksRef = useRef<
+    ((showLoading?: boolean) => Promise<void>) | null
+  >(null);
+
+  useEffect(() => {
+    currentViewRef.current = {
+      filter,
+      search: debouncedSearch,
+      page,
+    };
   }, [filter, debouncedSearch, page]);
+
+  const loadTasks = useCallback(
+    async (showLoading = true) => {
+      if (showLoading) {
+        setIsLoading(true);
+      }
+
+      setPageError(null);
+
+      try {
+        const data = await listTasks({
+          status: filter,
+          search: debouncedSearch,
+          limit: PAGE_SIZE,
+          offset: page * PAGE_SIZE,
+        });
+
+        /*
+         * Не возвращаем на экран задачи,
+         * которые пользователь только что удалил,
+         * пока DELETE ещё не завершился.
+         */
+        const visibleTasks = data.filter(
+          (task) =>
+            !hiddenTaskIdsRef.current.has(task.id),
+        );
+
+        setTasks(visibleTasks);
+      } catch (err) {
+        setPageError(
+          err instanceof Error
+            ? err.message
+            : "Не удалось загрузить задачи",
+        );
+      } finally {
+        if (showLoading) {
+          setIsLoading(false);
+        }
+      }
+    },
+    [filter, debouncedSearch, page],
+  );
+
+  useEffect(() => {
+    loadTasksRef.current = loadTasks;
+  }, [loadTasks]);
 
   const loadStats = useCallback(async () => {
     setStatsError(null);
 
     try {
       const data = await getTaskStats();
+
       setStats(data);
     } catch (err) {
       setStatsError(
@@ -93,15 +175,33 @@ export function TasksPage() {
   }, [loadStats]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const timer = window.setTimeout(() => {
       setDebouncedSearch(search);
       setPage(0);
     }, 400);
 
     return () => {
-      clearTimeout(timer);
+      window.clearTimeout(timer);
     };
   }, [search]);
+
+  /*
+   * Если пользователь покинул страницу,
+   * уже выбранное удаление всё равно сохраняем.
+   */
+  useEffect(() => {
+    return () => {
+      if (deleteTimerRef.current !== null) {
+        window.clearTimeout(deleteTimerRef.current);
+      }
+
+      const pending = pendingDeleteRef.current;
+
+      if (pending) {
+        void deleteTask(pending.task.id);
+      }
+    };
+  }, []);
 
   function changeFilter(nextFilter: Filter) {
     setFilter(nextFilter);
@@ -116,6 +216,53 @@ export function TasksPage() {
     setSearch("");
     setDebouncedSearch("");
     setPage(0);
+  }
+
+  function clearDeleteTimer() {
+    if (deleteTimerRef.current !== null) {
+      window.clearTimeout(deleteTimerRef.current);
+
+      deleteTimerRef.current = null;
+    }
+  }
+
+  function isSameView(pending: PendingDelete) {
+    const currentView = currentViewRef.current;
+
+    return (
+      currentView.filter === pending.filter &&
+      currentView.search === pending.search &&
+      currentView.page === pending.page
+    );
+  }
+
+  function restoreDeletedTask(
+    pending: PendingDelete,
+  ) {
+    setTasks((currentTasks) => {
+      const alreadyExists = currentTasks.some(
+        (item) => item.id === pending.task.id,
+      );
+
+      if (alreadyExists) {
+        return currentTasks;
+      }
+
+      const nextTasks = [...currentTasks];
+
+      const insertIndex = Math.min(
+        pending.index,
+        nextTasks.length,
+      );
+
+      nextTasks.splice(
+        insertIndex,
+        0,
+        pending.task,
+      );
+
+      return nextTasks;
+    });
   }
 
   async function refreshTasksAndStats() {
@@ -148,13 +295,8 @@ export function TasksPage() {
     setPageError(null);
 
     /*
-     * Optimistic update.
-     *
-     * Сначала меняем задачу прямо в React state.
-     * Благодаря этому TaskCard не исчезает,
-     * а просто получает класс task-card--done.
-     *
-     * CSS transition успевает проиграться.
+     * Optimistic update:
+     * сначала меняем UI, потом отправляем API.
      */
     setTasks((currentTasks) =>
       currentTasks.map((item) =>
@@ -168,29 +310,16 @@ export function TasksPage() {
     );
 
     try {
-      /*
-       * После изменения интерфейса
-       * сохраняем новый статус на сервере.
-       */
       await updateTask(task.id, {
         status: nextStatus,
       });
 
-      /*
-       * Перезагружаем только статистику.
-       *
-       * loadTasks() здесь специально НЕ вызываем,
-       * иначе появится skeleton и оборвётся анимация.
-       */
       await loadStats();
 
-      /*
-       * Если пользователь находится внутри фильтра,
-       * например "Открытые", а задача стала выполненной,
-       * даём анимации закончиться и только потом
-       * убираем карточку из текущего списка.
-       */
-      if (filter !== "all" && nextStatus !== filter) {
+      if (
+        filter !== "all" &&
+        nextStatus !== filter
+      ) {
         window.setTimeout(() => {
           setTasks((currentTasks) =>
             currentTasks.filter(
@@ -200,10 +329,6 @@ export function TasksPage() {
         }, 550);
       }
     } catch (err) {
-      /*
-       * Если сервер не смог сохранить изменение,
-       * откатываем optimistic update.
-       */
       setTasks((currentTasks) =>
         currentTasks.map((item) =>
           item.id === task.id ? task : item,
@@ -220,37 +345,183 @@ export function TasksPage() {
     }
   }
 
-  async function handleDelete(task: Task) {
-    const confirmed = window.confirm(
-      `Удалить задачу «${task.title}»?`,
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setBusyId(task.id);
-    setPageError(null);
-
+  /*
+   * Настоящее удаление на сервере.
+   *
+   * Эта функция вызывается только тогда,
+   * когда время на "Отменить" закончилось.
+   */
+  async function persistDelete(
+    pending: PendingDelete,
+  ) {
     try {
-      await deleteTask(task.id);
+      await deleteTask(pending.task.id);
+
+      hiddenTaskIdsRef.current.delete(
+        pending.task.id,
+      );
 
       await loadStats();
 
-      if (tasks.length === 1 && page > 0) {
-        setPage((current) => current - 1);
-      } else {
-        await loadTasks();
+      /*
+       * Если удалили последнюю задачу
+       * не на первой странице —
+       * переходим на предыдущую.
+       */
+      if (
+        pending.wasOnlyTaskOnPage &&
+        isSameView(pending) &&
+        pending.page > 0
+      ) {
+        setPage((currentPage) =>
+          currentPage === pending.page
+            ? currentPage - 1
+            : currentPage,
+        );
+
+        return;
       }
+
+      /*
+       * Тихо синхронизируем текущую страницу.
+       * Skeleton не показываем.
+       */
+      await loadTasksRef.current?.(false);
     } catch (err) {
+      /*
+       * DELETE не удался —
+       * задача на сервере всё ещё существует.
+       */
+      hiddenTaskIdsRef.current.delete(
+        pending.task.id,
+      );
+
+      if (isSameView(pending)) {
+        restoreDeletedTask(pending);
+      } else {
+        await loadTasksRef.current?.(false);
+      }
+
       setPageError(
         err instanceof Error
           ? err.message
           : "Не удалось удалить задачу",
       );
-    } finally {
-      setBusyId(null);
     }
+  }
+
+  function handleDelete(task: Task) {
+    setPageError(null);
+
+    /*
+     * Если предыдущий toast ещё открыт,
+     * завершаем предыдущее удаление
+     * и показываем новый toast.
+     */
+    const previousPending =
+      pendingDeleteRef.current;
+
+    if (previousPending) {
+      clearDeleteTimer();
+
+      pendingDeleteRef.current = null;
+
+      setPendingDelete(null);
+
+      void persistDelete(previousPending);
+    }
+
+    const taskIndex = tasks.findIndex(
+      (item) => item.id === task.id,
+    );
+
+    const pending: PendingDelete = {
+      task,
+      index:
+        taskIndex >= 0 ? taskIndex : tasks.length,
+      filter,
+      search: debouncedSearch,
+      page,
+      wasOnlyTaskOnPage:
+        tasks.length === 1 && page > 0,
+    };
+
+    /*
+     * Скрываем карточку сразу.
+     */
+    hiddenTaskIdsRef.current.add(task.id);
+
+    setTasks((currentTasks) =>
+      currentTasks.filter(
+        (item) => item.id !== task.id,
+      ),
+    );
+
+    pendingDeleteRef.current = pending;
+
+    setPendingDelete(pending);
+
+    /*
+     * Через 5 секунд отмена больше недоступна
+     * и отправляется настоящий DELETE.
+     */
+    deleteTimerRef.current = window.setTimeout(
+      () => {
+        const currentPending =
+          pendingDeleteRef.current;
+
+        if (
+          !currentPending ||
+          currentPending.task.id !== task.id
+        ) {
+          return;
+        }
+
+        pendingDeleteRef.current = null;
+        deleteTimerRef.current = null;
+
+        setPendingDelete(null);
+
+        void persistDelete(currentPending);
+      },
+      DELETE_UNDO_MS,
+    );
+  }
+
+  function handleUndoDelete() {
+    const pending = pendingDeleteRef.current;
+
+    if (!pending) {
+      return;
+    }
+
+    clearDeleteTimer();
+
+    pendingDeleteRef.current = null;
+
+    hiddenTaskIdsRef.current.delete(
+      pending.task.id,
+    );
+
+    setPendingDelete(null);
+
+    /*
+     * Если пользователь всё ещё находится
+     * на той же странице — возвращаем карточку
+     * мгновенно на старое место.
+     */
+    if (isSameView(pending)) {
+      restoreDeletedTask(pending);
+
+      return;
+    }
+
+    /*
+     * Если за эти 5 секунд поменялся
+     * фильтр, поиск или страница —
+     * тихо загружаем актуальный список.
+     */
+    void loadTasks(false);
   }
 
   return (
@@ -277,7 +548,9 @@ export function TasksPage() {
       <section className="dashboard">
         <div className="dashboard__heading">
           <div>
-            <p className="eyebrow">Твои задачи</p>
+            <p className="eyebrow">
+              Твои задачи
+            </p>
 
             <p className="dashboard__subtext">
               {stats
@@ -291,7 +564,8 @@ export function TasksPage() {
             type="button"
             onClick={() => setModalTask(null)}
           >
-            <span aria-hidden="true">＋</span> Новая задача
+            <span aria-hidden="true">＋</span>{" "}
+            Новая задача
           </button>
         </div>
 
@@ -304,7 +578,9 @@ export function TasksPage() {
               Всего
             </span>
 
-            <strong>{stats?.total ?? "—"}</strong>
+            <strong>
+              {stats?.total ?? "—"}
+            </strong>
           </article>
 
           <article className="stat-card">
@@ -312,7 +588,9 @@ export function TasksPage() {
               Открыто
             </span>
 
-            <strong>{stats?.open ?? "—"}</strong>
+            <strong>
+              {stats?.open ?? "—"}
+            </strong>
           </article>
 
           <article className="stat-card">
@@ -320,7 +598,9 @@ export function TasksPage() {
               Выполнено
             </span>
 
-            <strong>{stats?.done ?? "—"}</strong>
+            <strong>
+              {stats?.done ?? "—"}
+            </strong>
           </article>
 
           <article className="stat-card stat-card--danger">
@@ -328,12 +608,16 @@ export function TasksPage() {
               Просрочено
             </span>
 
-            <strong>{stats?.overdue ?? "—"}</strong>
+            <strong>
+              {stats?.overdue ?? "—"}
+            </strong>
           </article>
         </div>
 
         {statsError && (
-          <p className="stats-error">{statsError}</p>
+          <p className="stats-error">
+            {statsError}
+          </p>
         )}
 
         <div className="task-search">
@@ -351,7 +635,12 @@ export function TasksPage() {
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <circle cx="11" cy="11" r="8" />
+              <circle
+                cx="11"
+                cy="11"
+                r="8"
+              />
+
               <path d="m21 21-4.3-4.3" />
             </svg>
           </span>
@@ -363,7 +652,9 @@ export function TasksPage() {
             placeholder="Поиск задач..."
             aria-label="Поиск задач"
             onChange={(event) =>
-              changeSearch(event.target.value)
+              changeSearch(
+                event.target.value,
+              )
             }
           />
 
@@ -384,26 +675,32 @@ export function TasksPage() {
             className="segmented"
             aria-label="Фильтр задач"
           >
-            {(["all", "open", "done"] as Filter[]).map(
-              (item) => (
-                <button
-                  className={
-                    filter === item
-                      ? "segmented__item segmented__item--active"
-                      : "segmented__item"
-                  }
-                  type="button"
-                  key={item}
-                  onClick={() => changeFilter(item)}
-                >
-                  {item === "all"
-                    ? "Все"
-                    : item === "open"
-                      ? "Открытые"
-                      : "Выполненные"}
-                </button>
-              ),
-            )}
+            {(
+              [
+                "all",
+                "open",
+                "done",
+              ] as Filter[]
+            ).map((item) => (
+              <button
+                className={
+                  filter === item
+                    ? "segmented__item segmented__item--active"
+                    : "segmented__item"
+                }
+                type="button"
+                key={item}
+                onClick={() =>
+                  changeFilter(item)
+                }
+              >
+                {item === "all"
+                  ? "Все"
+                  : item === "open"
+                    ? "Открытые"
+                    : "Выполненные"}
+              </button>
+            ))}
           </div>
 
           <span className="page-label">
@@ -418,7 +715,9 @@ export function TasksPage() {
             <button
               className="text-button"
               type="button"
-              onClick={() => void loadTasks()}
+              onClick={() =>
+                void loadTasks()
+              }
             >
               Повторить
             </button>
@@ -430,14 +729,14 @@ export function TasksPage() {
             className="task-list"
             aria-label="Загрузка задач"
           >
-            {Array.from({ length: 4 }).map(
-              (_, index) => (
-                <div
-                  className="task-skeleton"
-                  key={index}
-                />
-              ),
-            )}
+            {Array.from({
+              length: 4,
+            }).map((_, index) => (
+              <div
+                className="task-skeleton"
+                key={index}
+              />
+            ))}
           </div>
         ) : tasks.length ? (
           <div className="task-list">
@@ -445,16 +744,16 @@ export function TasksPage() {
               <TaskCard
                 key={task.id}
                 task={task}
-                busy={busyId === task.id}
+                busy={
+                  busyId === task.id
+                }
                 onToggle={(item) =>
                   void handleToggle(item)
                 }
                 onEdit={(item) =>
                   setModalTask(item)
                 }
-                onDelete={(item) =>
-                  void handleDelete(item)
-                }
+                onDelete={handleDelete}
               />
             ))}
           </div>
@@ -492,7 +791,9 @@ export function TasksPage() {
               <button
                 className="button button--primary"
                 type="button"
-                onClick={() => setModalTask(null)}
+                onClick={() =>
+                  setModalTask(null)
+                }
               >
                 Создать задачу
               </button>
@@ -504,10 +805,15 @@ export function TasksPage() {
           <button
             className="button button--ghost"
             type="button"
-            disabled={page === 0 || isLoading}
+            disabled={
+              page === 0 || isLoading
+            }
             onClick={() =>
               setPage((current) =>
-                Math.max(0, current - 1),
+                Math.max(
+                  0,
+                  current - 1,
+                ),
               )
             }
           >
@@ -518,10 +824,14 @@ export function TasksPage() {
             className="button button--ghost"
             type="button"
             disabled={
-              tasks.length < PAGE_SIZE || isLoading
+              tasks.length < PAGE_SIZE ||
+              isLoading
             }
             onClick={() =>
-              setPage((current) => current + 1)
+              setPage(
+                (current) =>
+                  current + 1,
+              )
             }
           >
             Далее →
@@ -537,6 +847,16 @@ export function TasksPage() {
             setModalTask(undefined)
           }
           onSubmit={handleSave}
+        />
+      )}
+
+      {pendingDelete && (
+        <UndoToast
+          key={pendingDelete.task.id}
+          taskTitle={
+            pendingDelete.task.title
+          }
+          onUndo={handleUndoDelete}
         />
       )}
     </main>
