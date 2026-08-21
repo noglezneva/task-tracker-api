@@ -72,7 +72,8 @@
   transform: scale(1);
 
   transition:
-    transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    transform 350ms
+      cubic-bezier(0.34, 1.56, 0.64, 1),
     background-color 300ms ease,
     border-color 300ms ease;
 }
@@ -107,7 +108,8 @@
 
   transition:
     opacity 250ms ease,
-    transform 400ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    transform 400ms
+      cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .task-check--done .task-check__icon {
@@ -122,6 +124,7 @@
 .task-card__topline {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
 
   gap: 0.65rem;
 }
@@ -164,7 +167,8 @@
   transform-origin: left center;
 
   transition:
-    transform 550ms cubic-bezier(0.22, 1, 0.36, 1);
+    transform 550ms
+      cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .task-card--done h3 {
@@ -198,24 +202,86 @@
 /* Priority */
 
 .priority-pill {
-  padding: 0.18rem 0.46rem;
+  display: inline-flex;
+  align-items: center;
 
+  padding: 0.22rem 0.55rem;
+
+  border: 1px solid transparent;
   border-radius: 999px;
-
-  background: var(--priority-background);
-  color: var(--priority-text);
 
   font-size: 0.7rem;
   font-weight: 800;
+  line-height: 1.2;
+
+  white-space: nowrap;
 
   transition:
     opacity 300ms ease,
-    background 300ms ease,
+    background-color 300ms ease,
+    border-color 300ms ease,
     color 300ms ease;
 }
 
+
+/* High priority */
+
+.priority-pill--high {
+  border-color: rgba(183, 73, 66, 0.18);
+
+  background: rgba(183, 73, 66, 0.12);
+  color: #a43f39;
+}
+
+
+/* Medium priority */
+
+.priority-pill--medium {
+  border-color: rgba(193, 133, 36, 0.2);
+
+  background: rgba(219, 158, 50, 0.14);
+  color: #986515;
+}
+
+
+/* Low priority */
+
+.priority-pill--low {
+  border-color: rgba(86, 145, 76, 0.18);
+
+  background: rgba(101, 164, 89, 0.13);
+  color: #4f8247;
+}
+
+
+/* Priority in dark theme */
+
+:root[data-theme="dark"]
+  .priority-pill--high {
+  border-color: rgba(239, 131, 123, 0.28);
+
+  background: rgba(183, 73, 66, 0.17);
+  color: #ffaaa4;
+}
+
+:root[data-theme="dark"]
+  .priority-pill--medium {
+  border-color: rgba(238, 181, 85, 0.25);
+
+  background: rgba(219, 158, 50, 0.15);
+  color: #f0c36d;
+}
+
+:root[data-theme="dark"]
+  .priority-pill--low {
+  border-color: rgba(142, 199, 116, 0.24);
+
+  background: rgba(101, 164, 89, 0.14);
+  color: #a9d993;
+}
+
 .task-card--done .priority-pill {
-  opacity: 0.7;
+  opacity: 0.65;
 }
 
 

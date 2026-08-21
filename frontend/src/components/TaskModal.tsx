@@ -1,4 +1,8 @@
-import { useEffect, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useState,
+  type FormEvent,
+} from "react";
 import "./TaskModal.css";
 import type { Task, TaskCreate } from "../types";
 
@@ -9,6 +13,44 @@ interface TaskModalProps {
   onSubmit: (data: TaskCreate) => Promise<void>;
 }
 
+type Priority = 1 | 2 | 3;
+
+const PRIORITIES: {
+  value: Priority;
+  label: string;
+  tone: "high" | "medium" | "low";
+}[] = [
+  {
+    value: 1,
+    label: "Высокий",
+    tone: "high",
+  },
+  {
+    value: 2,
+    label: "Средний",
+    tone: "medium",
+  },
+  {
+    value: 3,
+    label: "Низкий",
+    tone: "low",
+  },
+];
+
+function normalizePriority(
+  priority: number | undefined,
+): Priority {
+  if (
+    priority === 1 ||
+    priority === 2 ||
+    priority === 3
+  ) {
+    return priority;
+  }
+
+  return 2;
+}
+
 export function TaskModal({
   task,
   isSaving,
@@ -16,54 +58,86 @@ export function TaskModal({
   onSubmit,
 }: TaskModalProps) {
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState(1);
+  const [description, setDescription] =
+    useState("");
+
+  const [priority, setPriority] =
+    useState<Priority>(2);
+
   const [dueDate, setDueDate] = useState("");
-  const [error, setError] = useState<string | null>(null);
+
+  const [error, setError] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     setTitle(task?.title ?? "");
-    setDescription(task?.description ?? "");
-    setPriority(task?.priority ?? 1);
+
+    setDescription(
+      task?.description ?? "",
+    );
+
+    setPriority(
+      normalizePriority(task?.priority),
+    );
+
     setDueDate(task?.due_date ?? "");
+
     setError(null);
   }, [task]);
 
   useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
+    function handleKeyDown(
+      event: KeyboardEvent,
+    ) {
       if (event.key === "Escape") {
         onClose();
       }
     }
 
-    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener(
+      "keydown",
+      handleKeyDown,
+    );
 
     return () => {
-      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener(
+        "keydown",
+        handleKeyDown,
+      );
     };
   }, [onClose]);
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(
+    event: FormEvent<HTMLFormElement>,
+  ) {
     event.preventDefault();
+
     setError(null);
 
     const cleanTitle = title.trim();
 
     if (!cleanTitle) {
-      setError("Укажи название задачи.");
+      setError(
+        "Укажи название задачи.",
+      );
+
       return;
     }
 
     try {
       await onSubmit({
         title: cleanTitle,
-        description: description.trim() || null,
+        description:
+          description.trim() || null,
         priority,
         due_date: dueDate || null,
       });
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Не удалось сохранить задачу",
+        err instanceof Error
+          ? err.message
+          : "Не удалось сохранить задачу",
       );
     }
   }
@@ -79,16 +153,22 @@ export function TaskModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="task-modal-title"
-        onMouseDown={(event) => event.stopPropagation()}
+        onMouseDown={(event) =>
+          event.stopPropagation()
+        }
       >
         <div className="modal__heading">
           <div>
             <p className="eyebrow">
-              {task ? "Редактирование задачи" : "Новая задача"}
+              {task
+                ? "Редактирование задачи"
+                : "Новая задача"}
             </p>
 
             <h2 id="task-modal-title">
-              {task ? "Обнови нужные детали" : "Что нужно сделать?"}
+              {task
+                ? "Обнови нужные детали"
+                : "Что нужно сделать?"}
             </h2>
           </div>
 
@@ -102,7 +182,10 @@ export function TaskModal({
           </button>
         </div>
 
-        <form className="task-form" onSubmit={handleSubmit}>
+        <form
+          className="task-form"
+          onSubmit={handleSubmit}
+        >
           <label>
             <span>Название</span>
 
@@ -110,8 +193,12 @@ export function TaskModal({
               autoFocus
               value={title}
               maxLength={255}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="Обновить портфолио"
+              onChange={(event) =>
+                setTitle(
+                  event.target.value,
+                )
+              }
+              placeholder="Купить продукты"
             />
           </label>
 
@@ -120,25 +207,58 @@ export function TaskModal({
 
             <textarea
               value={description}
-              onChange={(event) => setDescription(event.target.value)}
+              onChange={(event) =>
+                setDescription(
+                  event.target.value,
+                )
+              }
               rows={4}
               placeholder="Добавь немного контекста…"
             />
           </label>
 
           <div className="form-grid">
-            <label>
-              <span>Приоритет</span>
+            <fieldset className="priority-field">
+              <legend>Приоритет</legend>
 
-              <input
-                type="number"
-                min={1}
-                value={priority}
-                onChange={(event) =>
-                  setPriority(Math.max(1, Number(event.target.value) || 1))
-                }
-              />
-            </label>
+              <div className="priority-picker">
+                {PRIORITIES.map(
+                  ({
+                    value,
+                    label,
+                    tone,
+                  }) => (
+                    <label
+                      className={`priority-option priority-option--${tone}`}
+                      key={value}
+                    >
+                      <input
+                        className="priority-option__input"
+                        type="radio"
+                        name="priority"
+                        value={value}
+                        checked={
+                          priority === value
+                        }
+                        disabled={isSaving}
+                        onChange={() =>
+                          setPriority(value)
+                        }
+                      />
+
+                      <span className="priority-option__content">
+                        <span
+                          className="priority-option__dot"
+                          aria-hidden="true"
+                        />
+
+                        {label}
+                      </span>
+                    </label>
+                  ),
+                )}
+              </div>
+            </fieldset>
 
             <label>
               <span>Срок</span>
@@ -146,12 +266,20 @@ export function TaskModal({
               <input
                 type="date"
                 value={dueDate}
-                onChange={(event) => setDueDate(event.target.value)}
+                onChange={(event) =>
+                  setDueDate(
+                    event.target.value,
+                  )
+                }
               />
             </label>
           </div>
 
-          {error && <p className="form-error">{error}</p>}
+          {error && (
+            <p className="form-error">
+              {error}
+            </p>
+          )}
 
           <div className="modal__actions">
             <button

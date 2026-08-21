@@ -27,7 +27,8 @@
 
   background: var(--surface);
 
-  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.22);
+  box-shadow:
+    0 30px 90px rgba(0, 0, 0, 0.22);
 }
 
 .modal__heading {
@@ -48,13 +49,254 @@
   letter-spacing: -0.04em;
 }
 
+
+/* Form grid */
+
 .form-grid {
   display: grid;
 
   grid-template-columns: 1fr 1fr;
 
+  align-items: start;
+
   gap: 1rem;
 }
+
+
+/* Priority */
+
+.priority-field {
+  min-width: 0;
+
+  margin: 0;
+  padding: 0;
+
+  border: 0;
+}
+
+.priority-field legend {
+  margin-bottom: 0.45rem;
+  padding: 0;
+
+  color: var(--label);
+
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.priority-picker {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  gap: 0.35rem;
+}
+
+.task-form .priority-option {
+  position: relative;
+
+  display: block;
+
+  min-width: 0;
+
+  cursor: pointer;
+}
+
+.priority-option__input {
+  position: absolute;
+
+  width: 1px;
+  height: 1px;
+
+  opacity: 0;
+
+  pointer-events: none;
+}
+
+.priority-option__content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  gap: 0.35rem;
+
+  min-height: 3rem;
+
+  padding: 0.45rem 0.4rem;
+
+  border: 1px solid var(--line);
+  border-radius: 0.82rem;
+
+  background: var(--input);
+  color: var(--muted);
+
+  font-size: 0.73rem;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  transition:
+    transform 160ms ease,
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.priority-option__content:hover {
+  border-color: var(--muted);
+
+  color: var(--ink);
+
+  transform: translateY(-1px);
+}
+
+.priority-option__dot {
+  flex-shrink: 0;
+
+  width: 0.45rem;
+  height: 0.45rem;
+
+  border-radius: 50%;
+
+  background: currentColor;
+}
+
+
+/* Keyboard focus */
+
+.priority-option__input:focus-visible
+  + .priority-option__content {
+  outline: 3px solid
+    rgba(159, 243, 60, 0.42);
+
+  outline-offset: 2px;
+}
+
+
+/* High */
+
+.priority-option--high {
+  color: #a43f39;
+}
+
+.priority-option--high
+  .priority-option__input:checked
+  + .priority-option__content {
+  border-color:
+    rgba(183, 73, 66, 0.35);
+
+  background:
+    rgba(183, 73, 66, 0.12);
+
+  color: #a43f39;
+
+  box-shadow:
+    0 0 0 1px
+    rgba(183, 73, 66, 0.06);
+}
+
+
+/* Medium */
+
+.priority-option--medium {
+  color: #986515;
+}
+
+.priority-option--medium
+  .priority-option__input:checked
+  + .priority-option__content {
+  border-color:
+    rgba(193, 133, 36, 0.38);
+
+  background:
+    rgba(219, 158, 50, 0.14);
+
+  color: #986515;
+
+  box-shadow:
+    0 0 0 1px
+    rgba(193, 133, 36, 0.06);
+}
+
+
+/* Low */
+
+.priority-option--low {
+  color: #4f8247;
+}
+
+.priority-option--low
+  .priority-option__input:checked
+  + .priority-option__content {
+  border-color:
+    rgba(86, 145, 76, 0.35);
+
+  background:
+    rgba(101, 164, 89, 0.13);
+
+  color: #4f8247;
+
+  box-shadow:
+    0 0 0 1px
+    rgba(86, 145, 76, 0.06);
+}
+
+
+/* Dark theme */
+
+:root[data-theme="dark"]
+  .priority-option--high
+  .priority-option__input:checked
+  + .priority-option__content {
+  border-color:
+    rgba(239, 131, 123, 0.38);
+
+  background:
+    rgba(183, 73, 66, 0.17);
+
+  color: #ffaaa4;
+}
+
+:root[data-theme="dark"]
+  .priority-option--medium
+  .priority-option__input:checked
+  + .priority-option__content {
+  border-color:
+    rgba(238, 181, 85, 0.35);
+
+  background:
+    rgba(219, 158, 50, 0.15);
+
+  color: #f0c36d;
+}
+
+:root[data-theme="dark"]
+  .priority-option--low
+  .priority-option__input:checked
+  + .priority-option__content {
+  border-color:
+    rgba(142, 199, 116, 0.34);
+
+  background:
+    rgba(101, 164, 89, 0.14);
+
+  color: #a9d993;
+}
+
+
+/* Disabled */
+
+.priority-option__input:disabled
+  + .priority-option__content {
+  opacity: 0.5;
+
+  cursor: not-allowed;
+}
+
+
+/* Actions */
 
 .modal__actions {
   display: flex;
@@ -66,8 +308,19 @@
 }
 
 
+/* Responsive */
+
 @media (max-width: 620px) {
   .form-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+
+/* Reduced motion */
+
+@media (prefers-reduced-motion: reduce) {
+  .priority-option__content {
+    transition: none;
   }
 }

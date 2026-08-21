@@ -9,6 +9,8 @@ interface TaskCardProps {
   onDelete: (task: Task) => void;
 }
 
+type PriorityTone = "high" | "medium" | "low";
+
 function formatDate(value: string | null): string {
   if (!value) return "Без срока";
 
@@ -18,7 +20,10 @@ function formatDate(value: string | null): string {
   }).format(new Date(`${value}T00:00:00`));
 }
 
-function getDueDateLabel(dueDate: string | null, isDone: boolean): string {
+function getDueDateLabel(
+  dueDate: string | null,
+  isDone: boolean,
+): string {
   if (!dueDate) {
     return "Без срока";
   }
@@ -30,7 +35,9 @@ function getDueDateLabel(dueDate: string | null, isDone: boolean): string {
   tomorrow.setDate(tomorrow.getDate() + 1);
 
   const dayAfterTomorrow = new Date(today);
-  dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
+  dayAfterTomorrow.setDate(
+    dayAfterTomorrow.getDate() + 2,
+  );
 
   const due = new Date(`${dueDate}T00:00:00`);
   const formattedDate = formatDate(dueDate);
@@ -47,14 +54,19 @@ function getDueDateLabel(dueDate: string | null, isDone: boolean): string {
     return `Завтра · ${formattedDate}`;
   }
 
-  if (due.getTime() === dayAfterTomorrow.getTime()) {
+  if (
+    due.getTime() === dayAfterTomorrow.getTime()
+  ) {
     return `Послезавтра · ${formattedDate}`;
   }
 
   return formattedDate;
 }
 
-function isOverdue(dueDate: string | null, isDone: boolean): boolean {
+function isOverdue(
+  dueDate: string | null,
+  isDone: boolean,
+): boolean {
   if (!dueDate || isDone) {
     return false;
   }
@@ -67,6 +79,32 @@ function isOverdue(dueDate: string | null, isDone: boolean): boolean {
   return due < today;
 }
 
+function getPriorityLabel(priority: number): string {
+  if (priority === 1) {
+    return "Высокий";
+  }
+
+  if (priority === 2) {
+    return "Средний";
+  }
+
+  return "Низкий";
+}
+
+function getPriorityTone(
+  priority: number,
+): PriorityTone {
+  if (priority === 1) {
+    return "high";
+  }
+
+  if (priority === 2) {
+    return "medium";
+  }
+
+  return "low";
+}
+
 export function TaskCard({
   task,
   busy,
@@ -75,12 +113,30 @@ export function TaskCard({
   onDelete,
 }: TaskCardProps) {
   const isDone = task.status === "done";
-  const overdue = isOverdue(task.due_date, isDone);
+
+  const overdue = isOverdue(
+    task.due_date,
+    isDone,
+  );
+
+  const priorityLabel = getPriorityLabel(
+    task.priority,
+  );
+
+  const priorityTone = getPriorityTone(
+    task.priority,
+  );
 
   return (
-    <article className={`task-card ${isDone ? "task-card--done" : ""}`}>
+    <article
+      className={`task-card ${
+        isDone ? "task-card--done" : ""
+      }`}
+    >
       <button
-        className={`task-check ${isDone ? "task-check--done" : ""}`}
+        className={`task-check ${
+          isDone ? "task-check--done" : ""
+        }`}
         type="button"
         aria-label={
           isDone
@@ -90,7 +146,10 @@ export function TaskCard({
         disabled={busy}
         onClick={() => onToggle(task)}
       >
-        <span className="task-check__icon" aria-hidden="true">
+        <span
+          className="task-check__icon"
+          aria-hidden="true"
+        >
           ✓
         </span>
       </button>
@@ -98,17 +157,39 @@ export function TaskCard({
       <div className="task-card__body">
         <div className="task-card__topline">
           <h3>{task.title}</h3>
-          <span className="priority-pill">Приоритет {task.priority}</span>
+
+          <span
+            className={`priority-pill priority-pill--${priorityTone}`}
+          >
+            {priorityLabel}
+          </span>
         </div>
 
-        {task.description && <p>{task.description}</p>}
+        {task.description && (
+          <p>{task.description}</p>
+        )}
 
         <div
-          className={`task-meta ${overdue ? "task-meta--overdue" : ""}`}
+          className={`task-meta ${
+            overdue
+              ? "task-meta--overdue"
+              : ""
+          }`}
         >
-          <span>{getDueDateLabel(task.due_date, isDone)}</span>
+          <span>
+            {getDueDateLabel(
+              task.due_date,
+              isDone,
+            )}
+          </span>
+
           <span>•</span>
-          <span>{isDone ? "Выполнена" : "Открыта"}</span>
+
+          <span>
+            {isDone
+              ? "Выполнена"
+              : "Открыта"}
+          </span>
         </div>
       </div>
 
