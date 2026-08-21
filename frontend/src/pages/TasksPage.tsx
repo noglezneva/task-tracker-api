@@ -141,16 +141,75 @@ export function TasksPage() {
   }
 
   async function handleToggle(task: Task) {
+    const nextStatus =
+      task.status === "done" ? "open" : "done";
+
     setBusyId(task.id);
     setPageError(null);
 
+    /*
+     * Optimistic update.
+     *
+     * Сначала меняем задачу прямо в React state.
+     * Благодаря этому TaskCard не исчезает,
+     * а просто получает класс task-card--done.
+     *
+     * CSS transition успевает проиграться.
+     */
+    setTasks((currentTasks) =>
+      currentTasks.map((item) =>
+        item.id === task.id
+          ? {
+              ...item,
+              status: nextStatus,
+            }
+          : item,
+      ),
+    );
+
     try {
+      /*
+       * После изменения интерфейса
+       * сохраняем новый статус на сервере.
+       */
       await updateTask(task.id, {
-        status: task.status === "done" ? "open" : "done",
+        status: nextStatus,
       });
 
-      await refreshTasksAndStats();
+      /*
+       * Перезагружаем только статистику.
+       *
+       * loadTasks() здесь специально НЕ вызываем,
+       * иначе появится skeleton и оборвётся анимация.
+       */
+      await loadStats();
+
+      /*
+       * Если пользователь находится внутри фильтра,
+       * например "Открытые", а задача стала выполненной,
+       * даём анимации закончиться и только потом
+       * убираем карточку из текущего списка.
+       */
+      if (filter !== "all" && nextStatus !== filter) {
+        window.setTimeout(() => {
+          setTasks((currentTasks) =>
+            currentTasks.filter(
+              (item) => item.id !== task.id,
+            ),
+          );
+        }, 550);
+      }
     } catch (err) {
+      /*
+       * Если сервер не смог сохранить изменение,
+       * откатываем optimistic update.
+       */
+      setTasks((currentTasks) =>
+        currentTasks.map((item) =>
+          item.id === task.id ? task : item,
+        ),
+      );
+
       setPageError(
         err instanceof Error
           ? err.message
@@ -241,17 +300,26 @@ export function TasksPage() {
           aria-label="Статистика задач"
         >
           <article className="stat-card">
-            <span className="stat-card__label">Всего</span>
+            <span className="stat-card__label">
+              Всего
+            </span>
+
             <strong>{stats?.total ?? "—"}</strong>
           </article>
 
           <article className="stat-card">
-            <span className="stat-card__label">Открыто</span>
+            <span className="stat-card__label">
+              Открыто
+            </span>
+
             <strong>{stats?.open ?? "—"}</strong>
           </article>
 
           <article className="stat-card">
-            <span className="stat-card__label">Выполнено</span>
+            <span className="stat-card__label">
+              Выполнено
+            </span>
+
             <strong>{stats?.done ?? "—"}</strong>
           </article>
 
@@ -259,6 +327,7 @@ export function TasksPage() {
             <span className="stat-card__label">
               Просрочено
             </span>
+
             <strong>{stats?.overdue ?? "—"}</strong>
           </article>
         </div>
@@ -361,12 +430,14 @@ export function TasksPage() {
             className="task-list"
             aria-label="Загрузка задач"
           >
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div
-                className="task-skeleton"
-                key={index}
-              />
-            ))}
+            {Array.from({ length: 4 }).map(
+              (_, index) => (
+                <div
+                  className="task-skeleton"
+                  key={index}
+                />
+              ),
+            )}
           </div>
         ) : tasks.length ? (
           <div className="task-list">
@@ -378,7 +449,9 @@ export function TasksPage() {
                 onToggle={(item) =>
                   void handleToggle(item)
                 }
-                onEdit={(item) => setModalTask(item)}
+                onEdit={(item) =>
+                  setModalTask(item)
+                }
                 onDelete={(item) =>
                   void handleDelete(item)
                 }
@@ -387,7 +460,9 @@ export function TasksPage() {
           </div>
         ) : (
           <div className="empty-state">
-            <span className="empty-state__mark">✓</span>
+            <span className="empty-state__mark">
+              ✓
+            </span>
 
             <h2>
               {search.trim()
@@ -458,7 +533,9 @@ export function TasksPage() {
         <TaskModal
           task={modalTask}
           isSaving={isSaving}
-          onClose={() => setModalTask(undefined)}
+          onClose={() =>
+            setModalTask(undefined)
+          }
           onSubmit={handleSave}
         />
       )}
