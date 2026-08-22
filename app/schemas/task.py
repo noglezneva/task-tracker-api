@@ -1,13 +1,23 @@
 from datetime import date, datetime
+from typing import Annotated
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
 from app.models.task import TaskStatus
 
+TaskTitle = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=1,
+        max_length=255,
+    ),
+]
+
 
 class TaskBase(BaseModel):
-    title: str = Field(min_length=1, max_length=255)
+    title: TaskTitle
     description: str | None = None
     priority: int = Field(default=1, ge=1, le=3)
     due_date: date | None = None
@@ -18,11 +28,7 @@ class TaskCreate(TaskBase):
 
 
 class TaskUpdate(BaseModel):
-    title: str | None = Field(
-        default=None,
-        min_length=1,
-        max_length=255,
-    )
+    title: TaskTitle | None = None
     description: str | None = None
     priority: int | None = Field(default=None, ge=1, le=3)
     due_date: date | None = None

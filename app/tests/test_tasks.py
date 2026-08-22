@@ -58,6 +58,31 @@ def test_cannot_create_task_with_empty_title(client: TestClient) -> None:
     assert resp.status_code == 422
 
 
+def test_cannot_create_task_with_blank_title(client: TestClient) -> None:
+    headers = _get_auth_header(client, "blank-title@example.com")
+
+    resp = client.post(
+        "/tasks",
+        json={"title": "     "},
+        headers=headers,
+    )
+
+    assert resp.status_code == 422
+
+
+def test_task_title_is_trimmed(client: TestClient) -> None:
+    headers = _get_auth_header(client, "trim-title@example.com")
+
+    resp = client.post(
+        "/tasks",
+        json={"title": "   Buy groceries   "},
+        headers=headers,
+    )
+
+    assert resp.status_code == 201
+    assert resp.json()["title"] == "Buy groceries"
+
+
 def test_cannot_update_task_with_empty_title(client: TestClient) -> None:
     headers = _get_auth_header(client, "update-validation@example.com")
 
@@ -73,6 +98,27 @@ def test_cannot_update_task_with_empty_title(client: TestClient) -> None:
     update_resp = client.patch(
         f"/tasks/{task_id}",
         json={"title": ""},
+        headers=headers,
+    )
+
+    assert update_resp.status_code == 422
+
+
+def test_cannot_update_task_with_blank_title(client: TestClient) -> None:
+    headers = _get_auth_header(client, "blank-update-title@example.com")
+
+    create_resp = client.post(
+        "/tasks",
+        json={"title": "Original title"},
+        headers=headers,
+    )
+    assert create_resp.status_code == 201
+
+    task_id = create_resp.json()["id"]
+
+    update_resp = client.patch(
+        f"/tasks/{task_id}",
+        json={"title": "     "},
         headers=headers,
     )
 
