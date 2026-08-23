@@ -777,10 +777,13 @@ export function TasksPage() {
             placeholder="Поиск задач..."
             aria-label="Поиск задач"
             onChange={(event) =>
-              changeSearch(
-                event.target.value,
-              )
+              changeSearch(event.target.value)
             }
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                clearSearch();
+              }
+            }}
           />
 
           {search && (
