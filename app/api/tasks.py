@@ -31,6 +31,7 @@ async def list_tasks(
     status: Literal["open", "done"] | None = Query(default=None),
     priority: int | None = Query(default=None, ge=1, le=3),
     search: str | None = Query(default=None, min_length=1, max_length=255),
+    overdue: bool = Query(default=False),
     sort_by: Literal["created_at", "due_date", "priority"] = Query(
         default="created_at"
     ),
@@ -45,6 +46,7 @@ async def list_tasks(
         status=TaskStatus(status) if status is not None else None,
         priority=priority,
         search=search,
+        overdue=overdue,
         sort_by=sort_by,
         order=order,
         limit=limit,

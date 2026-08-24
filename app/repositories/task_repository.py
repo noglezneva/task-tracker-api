@@ -39,6 +39,7 @@ class TaskRepository:
         status: TaskStatus | None,
         priority: int | None,
         search: str | None,
+        overdue: bool,
         sort_by: str,
         order: str,
         limit: int,
@@ -54,6 +55,12 @@ class TaskRepository:
 
         if search is not None:
             query = query.where(Task.title.ilike(f"%{search}%"))
+
+        if overdue:
+            query = query.where(
+                Task.status == TaskStatus.OPEN,
+                Task.due_date < datetime.now(timezone.utc).date(),
+            )
 
         sort_columns = {
             "created_at": Task.created_at,

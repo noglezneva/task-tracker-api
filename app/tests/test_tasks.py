@@ -245,6 +245,65 @@ def test_rejects_invalid_priority_filter(
     assert resp.status_code == 422
 
 
+def test_filter_overdue_tasks(client: TestClient) -> None:
+    headers = _get_auth_header(client, "overdue-filter@example.com")
+
+    today = datetime.now(timezone.utc).date()
+    overdue_date = (today - timedelta(days=1)).isoformat()
+    future_date = (today + timedelta(days=1)).isoformat()
+
+    overdue_resp = client.post(
+        "/tasks",
+        json={
+            "title": "Overdue open task",
+            "due_date": overdue_date,
+        },
+        headers=headers,
+    )
+    assert overdue_resp.status_code == 201
+
+    future_resp = client.post(
+        "/tasks",
+        json={
+            "title": "Future open task",
+            "due_date": future_date,
+        },
+        headers=headers,
+    )
+    assert future_resp.status_code == 201
+
+    done_resp = client.post(
+        "/tasks",
+        json={
+            "title": "Completed overdue task",
+            "due_date": overdue_date,
+        },
+        headers=headers,
+    )
+    assert done_resp.status_code == 201
+
+    update_resp = client.patch(
+        f"/tasks/{done_resp.json()['id']}",
+        json={"status": "done"},
+        headers=headers,
+    )
+    assert update_resp.status_code == 200
+
+    resp = client.get(
+        "/tasks?overdue=true",
+        headers=headers,
+    )
+
+    assert resp.status_code == 200
+
+    tasks = resp.json()
+
+    assert len(tasks) == 1
+    assert tasks[0]["id"] == overdue_resp.json()["id"]
+    assert tasks[0]["title"] == "Overdue open task"
+    assert tasks[0]["status"] == "open"
+
+
 def test_cannot_create_task_with_invalid_priority(client: TestClient) -> None:
     headers = _get_auth_header(client, "invalid-create-priority@example.com")
 
