@@ -152,6 +152,43 @@ def test_search_tasks_by_title(client: TestClient) -> None:
     assert tasks[0]["title"] == "Learn FastAPI"
 
 
+def test_search_tasks_by_description(client: TestClient) -> None:
+    headers = _get_auth_header(client, "description-search@example.com")
+
+    matching_resp = client.post(
+        "/tasks",
+        json={
+            "title": "Database course",
+            "description": "Learn PostgreSQL indexes",
+        },
+        headers=headers,
+    )
+    assert matching_resp.status_code == 201
+
+    other_resp = client.post(
+        "/tasks",
+        json={
+            "title": "Backend course",
+            "description": "Learn FastAPI",
+        },
+        headers=headers,
+    )
+    assert other_resp.status_code == 201
+
+    resp = client.get(
+        "/tasks?search=postgresql",
+        headers=headers,
+    )
+
+    assert resp.status_code == 200
+
+    tasks = resp.json()
+
+    assert len(tasks) == 1
+    assert tasks[0]["id"] == matching_resp.json()["id"]
+    assert tasks[0]["title"] == "Database course"
+
+
 def test_sort_tasks_by_priority(client: TestClient) -> None:
     headers = _get_auth_header(client, "sorting@example.com")
 

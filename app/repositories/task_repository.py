@@ -1,7 +1,7 @@
 from datetime import date, datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import and_, case, func, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.task import Task, TaskStatus
@@ -54,7 +54,13 @@ class TaskRepository:
             query = query.where(Task.priority == priority)
 
         if search is not None:
-            query = query.where(Task.title.ilike(f"%{search}%"))
+            search_pattern = f"%{search}%"
+            query = query.where(
+                or_(
+                    Task.title.ilike(search_pattern),
+                    Task.description.ilike(search_pattern),
+                )
+            )
 
         if overdue:
             query = query.where(
